@@ -10,6 +10,7 @@ import json
 import queue
 import paperlib as lib
 import structlog
+import sys
 
 """
     网络部分的模块
@@ -21,7 +22,7 @@ import structlog
             "key":"value"
         }
     }
-    
+
     服务端数据包应去除token,格式如下
     {
         "type": "类型",
@@ -57,8 +58,11 @@ import structlog
         }
     }
 """
+
+
 def get_logger():
     return structlog.get_logger()
+
 
 logger = get_logger()
 temp_xml_dir = "data/"
@@ -76,6 +80,7 @@ class ClientNetwork:
 
         self.message_queue = queue.Queue()
         self.return_queue = queue.Queue()
+        self.offline_message_queue = queue.Queue()
 
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.connect((self.server_host, self.server_port))
@@ -90,28 +95,53 @@ class ClientNetwork:
             "token": token,
             "payload": payload
         }
-        packet = json.dumps(packet) + "\n"
-        self.sock.sendall(packet.encode("utf-8"))
+        packet = json.dumps(packet)
+        packet_bytes = packet.encode("utf-8")
+        # 发送4字节的数据长度
+        length = len(packet_bytes)
+        length_bytes = length.to_bytes(4, byteorder='big')
+        self.sock.sendall(length_bytes)
+        # 发送实际数据
+        self.sock.sendall(packet_bytes)
 
     def receive_packet(self):
         """
         接收消息用的线程
         :return None
         """
-        while True:
-            """
-            通过\n作为结尾为条件来接收完整数据包
-            """
-            buffer = ""
-            packet = self.sock.recv(1024).decode("utf-8")
-            if not packet:
-                continue
-            buffer += packet
-            while '\n' in buffer:
-                raw_msg, buffer = buffer.split('\n', 1)
-                if not raw_msg.strip():
+        try:
+            while True:
+                """
+                通过消息前4字节的数据来接收完整数据包
+                """
+                # 先接收4字节的数据长度
+                length_bytes = self.sock.recv(4)
+                if not length_bytes:
                     continue
-                #此时已获取到一个完整的数据包
+
+                # 解析数据长度
+                data_length = int.from_bytes(length_bytes, byteorder='big')
+
+                # 接收实际数据
+                buffer = b''
+                while len(buffer) < data_length:
+                    remaining = data_length - len(buffer)
+                    chunk = self.sock.recv(min(1024, remaining))
+                    if not chunk:
+                        break
+                    buffer += chunk
+
+                if len(buffer) != data_length:
+                    logger.warning(f"接收到的数据长度不匹配：预期{data_length}字节，实际接收{len(buffer)}字节")
+                    continue
+
+                try:
+                    raw_msg = buffer.decode("utf-8")
+                except UnicodeDecodeError as e:
+                    logger.warning(f"UTF-8解码失败: {e}")
+                    continue
+
+                # 此时已获取到一个完整的数据包
                 try:
                     msg = json.loads(raw_msg)
                 except json.JSONDecodeError as e:
@@ -131,9 +161,23 @@ class ClientNetwork:
                 elif msg["type"] == "heartbeat":
                     logger.debug("收到心跳包，正在回复")
                     self.send_packet("heartbeat", {"content": "Health check received."})
+                elif msg["type"] == "offline_messages":
+                    # 离线消息
+                    """for message in msg["payload"]:
+                        logger.debug(f"收到离线消息: {message[1]}:{message[0]}")"""
+                    for message in msg["payload"]:
+                        self.offline_message_queue.put(message)
                 else:
                     # 未知消息
                     logger.warning(f"收到未知消息类型: {msg['type']}, full content:{msg}")
+                # process_message(self)
+
+        except BrokenPipeError:
+            logger.warning("服务器已断开连接")
+            sys.exit(1)
+        except ConnectionError:
+            logger.warning("服务器已断开连接")
+            sys.exit(1)
 
 
 if __name__ == '__main__':
