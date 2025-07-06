@@ -1,4 +1,4 @@
-<?xml version="1.0" ?>
+<?xml version='1.0' encoding='utf-8'?>
 <data>
   <server>
     <ip>127.0.0.1</ip>
@@ -7,5 +7,6 @@
   <account>
     <username>admin</username>
     <password>admin</password>
+    <uid>0</uid>
   </account>
 </data>

@@ -5,8 +5,9 @@
 # @Software: PyCharm
 # @Desc    :
 # @Author  : Kevin Chang
-import sqlite3,traceback
-import time
+import sqlite3
+import traceback
+
 import structlog
 
 logger = structlog.get_logger()
@@ -29,7 +30,7 @@ class Database:
             self.cursor = self.conn.cursor()
         except sqlite3.Error as e:
             logger.error(f"Error connecting to database: {e}")
-            logger.traceback(traceback.format_exc())
+            logger.critical(traceback.format_exc())
 
     def run_sql(self, command, params=None):
         """
@@ -64,7 +65,7 @@ class Database:
             self.conn.commit()
         except sqlite3.Error as e:
             logger.error(f"插入数据失败: {e}")
-            logger.traceback(traceback.format_exc())
+            logger.critical(traceback.format_exc())
 
     def select_sql(self, table, columns, condition=None):
         """
@@ -82,7 +83,7 @@ class Database:
             return result
         except sqlite3.Error as e:
             logger.error(f"查询数据失败: {e}")
-            logger.traceback(traceback.format_exc())
+            logger.critical(traceback.format_exc())
             return None
 
     def close(self):
@@ -118,6 +119,24 @@ class Database:
             print(traceback.format_exc())
             return None
     def save_contact(self, uid, username, name, mem):
+        """
+        保存联系人信息
+        Args:
+            :param uid: 用户id
+            :param username: 用户名
+            :param name: 昵称
+            :param mem: 备注
+        """
         self.insert_sql("contact", "id, username, name, mem", [uid, username, name, mem])
         
-        
+    def save_chat_message(self, from_user, to_user, content, send_time, message_type="text"):
+        """
+        保存聊天消息
+        Args:
+            :param from_user: 发送者id
+            :param to_user: 接收者id
+            :param content: 消息内容
+            :param send_time: 发送时间
+            :param message_type: 消息类型
+        """
+        self.insert_sql("chat_history", "from_user, to_user, type, content, send_time", [from_user, to_user, message_type, content, send_time])

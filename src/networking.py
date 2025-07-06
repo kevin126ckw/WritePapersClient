@@ -70,7 +70,7 @@ temp_xml_dir = "data/"
 
 class ClientNetwork:
     def __init__(self):
-
+        self.is_debug = None
         self.server_host = lib.read_xml("server/ip", temp_xml_dir)
         try:
             self.server_port = int(lib.read_xml("server/port", temp_xml_dir))
@@ -85,7 +85,7 @@ class ClientNetwork:
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.connect((self.server_host, self.server_port))
         if self.sock:
-            logger.debug("成功连接到服务器")
+            logger.info("成功连接到服务器")
 
     def send_packet(self, message_type, payload, token="TEMP_TOKEN_NEED_CHANGE"):
         if message_type == "login":
@@ -103,6 +103,8 @@ class ClientNetwork:
         self.sock.sendall(length_bytes)
         # 发送实际数据
         self.sock.sendall(packet_bytes)
+        if self.is_debug():
+            logger.debug(f"发送数据{packet}成功")
 
     def receive_packet(self):
         """
@@ -148,10 +150,17 @@ class ClientNetwork:
                     logger.warning(f"JSON 解析失败: {e}, 数据内容: {raw_msg}")
                     continue
                 # 调试 打印消息
-                logger.debug("收到消息:" + raw_msg)
+                if self.is_debug():
+                    logger.debug("收到消息:" + raw_msg)
                 if msg["type"] == "new_message":
                     # 正常私聊消息
                     self.message_queue.put(msg)
+                elif msg["type"] == "login_result":
+                    # 发送消息结果
+                    if msg['payload']['success']:
+                        logger.info("登录成功")
+                    else:
+                        logger.info("登录失败")
                 elif msg["type"].endswith("result") or msg["type"].endswith("return"):
                     # 某些函数需要的返回值
                     self.return_queue.put(msg)
@@ -159,7 +168,8 @@ class ClientNetwork:
                     # Hello
                     logger.critical("服务器给你发了个Hello!")
                 elif msg["type"] == "heartbeat":
-                    logger.debug("收到心跳包，正在回复")
+                    if self.is_debug():
+                        logger.debug("收到心跳包，正在回复")
                     self.send_packet("heartbeat", {"content": "Health check received."})
                 elif msg["type"] == "offline_messages":
                     # 离线消息
