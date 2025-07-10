@@ -13,6 +13,8 @@ import sys
 import threading
 import time
 import tkinter as tk
+from tkinter import messagebox
+
 # import traceback
 # import time
 import database
@@ -25,10 +27,13 @@ import networking
 import paperlib as lib
 from ui import GUI
 from login_ui import LoginUI
+from reg_ui import RegisterUI
 
 uid = NotImplemented
 login_ui_class = NotImplemented
 login_root = NotImplemented
+register_root = NotImplemented
+register_class = NotImplemented
 root = NotImplemented
 gui = NotImplemented
 
@@ -69,7 +74,7 @@ def process_message(net_module):
     处理消息队列
     :return None        
     """
-    global login_root, login_ui_class, logged_in
+    global login_root, login_ui_class, logged_in, register_class
 
     # 离线消息
     while not net_module.offline_message_queue.empty():
@@ -110,8 +115,14 @@ def process_message(net_module):
                 lib.write_xml("account/username", msg['payload']['username'])
                 lib.write_xml("account/password", msg['payload']['password'])
                 lib.write_xml("account/uid", msg['payload']['uid'])
+                logger.debug(f"写入配置文件,username:{msg['payload']['username']}, password:{msg['payload']['password']}, uid:{msg['payload']['uid']}")
+                messagebox.showinfo("注册成功", f"恭喜您，注册成功！您的UID是{msg['payload']['uid']}\n请手动重新启动应用程序登录！")
+                # login(msg['payload']['username'], msg['payload']['password'])
+                # time.sleep(0.3)
+                register_class.root.after(3, register_class.root.destroy())
             else:
                 logger.error("注册失败")
+                messagebox.showerror("注册失败", "注册失败，请检查用户名是否已存在")
         elif msg['type'] == "login_result":
             if msg['payload']['success']:
                 logger.info("登录成功")
@@ -196,7 +207,7 @@ def process_message_thread():
         if not net.message_queue.empty() or not net.return_queue.empty() or not net.offline_message_queue.empty():
             process_message(net)
         else:
-            time.sleep(0.1)
+            time.sleep(0.01)
 
 def login(username, password):
     net.send_packet("login", {"username": username, "password": password})
@@ -210,6 +221,38 @@ def update_contacts():
     gui.contacts = contacts
     gui.load_contacts()
 
+def register_user_handler(window_class):
+    print("注册用户")
+    username = window_class.username_entry.get()
+    password = window_class.password_entry.get()
+    print(f"用户名:{username}, 密码:{password}")
+    print(window_class.agree_terms_var.get())
+    # 注册用户
+    if not window_class.validate_all_fields():
+        return
+
+    if not window_class.agree_terms_var.get():
+        messagebox.showerror("错误", "请先同意用户协议和隐私政策")
+        return
+
+
+    # 模拟注册过程
+    # messagebox.showinfo("注册成功", "恭喜您，注册成功！\n系统将为您自动登录...")
+
+    # 这里可以添加实际的注册逻辑
+    # window_class.root.destroy()
+    net.send_packet("register_account", {"username": username, "password": password})
+def start_register():
+    global register_root,register_class, login_ui_class
+    print("开始注册")
+    login_ui_class.root.after(0, lambda: login_ui_class.root.destroy())
+    register_root = tk.Tk()
+    register_class = RegisterUI(register_root)
+    register_class.register_user_handler = lambda : register_user_handler(register_class)
+    register_class.create_action_buttons(register_class.scrollable_frame)
+    register_class.setup_bindings()
+    register_root.mainloop()
+    print("注册界面创建完毕")
 def main():
     """
     测试客户端
@@ -243,9 +286,6 @@ def main():
     logger.info("正在启动客户端...")
     db.connect(lib.read_xml("database/file", "data/"))
     contacts = []
-    for contact in db.select_sql("contact", "mem, id"):
-        last_message = db.get_last_chat_message(uid, contact[1])
-        contacts.append({"name": contact[0], "id":contact[1] ,"avatar": "👨", "last_msg": f"{last_message[0][4]}" + " " * (50-len(last_message[0][4])), "time": time.strftime("%H:%M", time.localtime(last_message[0][5]))})
 
     main_receive_thread = threading.Thread(target=net.receive_packet, daemon=True)
     main_receive_thread.start()
@@ -255,6 +295,8 @@ def main():
     login_root = tk.Tk()
     login_ui_class = LoginUI(login_root)
     login_ui_class.validate_login_handler = lambda username_var, password_var: validate_login(username_var, password_var)
+    login_ui_class.show_register = lambda : start_register()
+    login_ui_class.create_register()
     if is_debug():
         if answer == "y" or answer == "":
             login_ui_class.username_entry.delete('0', tk.END)
@@ -268,10 +310,15 @@ def main():
         login_ui_class.password_entry.insert(string=password, index=0)
     login_root.mainloop()
 
-
     if not logged_in:
         logger.critical("登录失败")
         return
+
+    for contact in db.select_sql("contact", "mem, id"):
+        if contact:
+            last_message = db.get_last_chat_message(uid, contact[1])
+            if last_message:
+                contacts.append({"name": contact[0], "id":contact[1] ,"avatar": "👨", "last_msg": f"{last_message[0][4]}" + " " * (50-len(last_message[0][4])), "time": time.strftime("%H:%M", time.localtime(last_message[0][5]))})
     root = tk.Tk()
     gui = GUI(root, load_messages)
     gui.send_message_handler = lambda contact_: send_message(gui, contact_)
@@ -295,6 +342,8 @@ def main():
     gui.load_contacts()
     # threading.Thread(target=root.mainloop, daemon=True).start()
     root.mainloop()
+
+
 
 
 if __name__ == "__main__":

@@ -1,18 +1,38 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
+"""
 import re
 from PIL import Image, ImageTk
 import os
+"""
 
 
-class ModernRegisterApp:
-    def __init__(self, root):
-        self.root = root
+class RegisterUI:
+    def __init__(self, window_root):
+        self.agree_terms_checkbox = None
+        self.confirm_password_entry = None
+        self.password_entry = None
+        self.username_entry = None
+        self.scrollable_frame = None
+        self.register_user_handler = None
+        self.colors = None
+        self.fonts = None
+        self.avatar_label = None
+        self.avatar_preview_frame = None
+        self.avatar_path = None
+        self.username_var = tk.StringVar()
+        self.email_var = tk.StringVar()
+        self.password_var = tk.StringVar()
+        self.confirm_password_var = tk.StringVar()
+        self.phone_var = tk.StringVar()
+        self.gender_var = tk.StringVar(value="保密")
+        self.agree_terms_var = tk.BooleanVar()
+        self.root = window_root
         self.setup_window()
         self.setup_styles()
-        self.setup_variables()
         self.create_ui()
-        self.setup_bindings()
+
+        # self.setup_bindings()
 
     def setup_window(self):
         self.root.title("现代IM - 用户注册")
@@ -57,15 +77,6 @@ class ModernRegisterApp:
             'button': ('Microsoft YaHei UI', 11, 'bold')
         }
 
-    def setup_variables(self):
-        self.username_var = tk.StringVar()
-        self.email_var = tk.StringVar()
-        self.password_var = tk.StringVar()
-        self.confirm_password_var = tk.StringVar()
-        self.phone_var = tk.StringVar()
-        self.gender_var = tk.StringVar(value="保密")
-        self.agree_terms_var = tk.BooleanVar()
-        self.avatar_path = None
 
     def create_ui(self):
         # 主容器
@@ -142,22 +153,22 @@ class ModernRegisterApp:
         # 创建滚动区域
         canvas = tk.Canvas(form_container, bg='white', highlightthickness=0)
         scrollbar = ttk.Scrollbar(form_container, orient='vertical', command=canvas.yview)
-        scrollable_frame = tk.Frame(canvas, bg='white')
+        self.scrollable_frame = tk.Frame(canvas, bg='white')
 
-        scrollable_frame.bind(
+        self.scrollable_frame.bind(
             "<Configure>",
             lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
         )
 
-        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
         canvas.configure(yscrollcommand=scrollbar.set)
 
         # 表单标题
-        title_label = tk.Label(scrollable_frame, text="创建账户", font=self.fonts['title'],
+        title_label = tk.Label(self.scrollable_frame, text="创建账户", font=self.fonts['title'],
                                bg='white', fg=self.colors['dark'])
         title_label.pack(pady=(0, 10))
 
-        subtitle_label = tk.Label(scrollable_frame, text="请填写以下信息完成注册",
+        subtitle_label = tk.Label(self.scrollable_frame, text="请填写以下信息完成注册",
                                   font=self.fonts['subtitle'], bg='white', fg=self.colors['light'])
         subtitle_label.pack(pady=(0, 30))
 
@@ -165,17 +176,17 @@ class ModernRegisterApp:
         # self.create_avatar_section(scrollable_frame)
 
         # 表单字段
-        self.create_form_fields(scrollable_frame)
+        self.create_form_fields(self.scrollable_frame)
 
         # 协议同意
-        self.create_agreement_section(scrollable_frame)
+        self.create_agreement_section(self.scrollable_frame)
 
         # 注册按钮
-        self.create_action_buttons(scrollable_frame)
+        # self.create_action_buttons(scrollable_frame)
 
         # 配置滚动
         canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
+        # scrollbar.pack(side="right", fill="y")
 
         # 鼠标滚轮绑定
         def on_mousewheel(event):
@@ -212,6 +223,7 @@ class ModernRegisterApp:
 
     def create_form_fields(self, parent):
         # 表单字段配置
+        """
         fields = [
             ("用户名", self.username_var, "请输入用户名"),
 #            ("邮箱", self.email_var, "请输入邮箱地址"),
@@ -227,9 +239,13 @@ class ModernRegisterApp:
             is_password = len(field_info) > 3 and field_info[3]
 
             self.create_input_field(parent, field_name, field_var, placeholder, is_password)
-
+        """
         # 性别选择
         # self.create_gender_field(parent)
+        str(parent.info)
+        self.username_entry = self.create_input_field(self.scrollable_frame, "用户名", self.username_var, "请输入用户名")
+        self.password_entry = self.create_input_field(self.scrollable_frame, "密码", self.password_var, "请输入密码", True)
+        self.confirm_password_entry = self.create_input_field(self.scrollable_frame, "确认密码", self.confirm_password_var, "请再次输入密码", True)
 
     def create_input_field(self, parent, label_text, variable, placeholder, is_password=False):
         # 字段容器
@@ -269,6 +285,8 @@ class ModernRegisterApp:
         # 实时验证
         variable.trace('w', lambda *args: self.validate_field(label_text, variable, status_label))
 
+        return entry
+
     def create_gender_field(self, parent):
         # 性别选择
         gender_frame = tk.Frame(parent, bg='white')
@@ -295,11 +313,14 @@ class ModernRegisterApp:
         agreement_frame = tk.Frame(parent, bg='white')
         agreement_frame.pack(fill='x', pady=(10, 20))
 
+        def change_checkbox_value():
+            self.agree_terms_var.set(not self.agree_terms_var.get())
+
         # 复选框
-        checkbox = tk.Checkbutton(agreement_frame, variable=self.agree_terms_var,
+        self.agree_terms_checkbox = tk.Checkbutton(agreement_frame, variable=self.agree_terms_var,
                                   bg='white', activebackground='white',
-                                  selectcolor=self.colors['primary'])
-        checkbox.pack(side='left')
+                                  selectcolor='white', onvalue=True, offvalue=False, command=change_checkbox_value)
+        self.agree_terms_checkbox.pack(side='left')
 
         # 协议文本
         agreement_text_frame = tk.Frame(agreement_frame, bg='white')
@@ -334,7 +355,7 @@ class ModernRegisterApp:
         register_btn = tk.Button(button_frame, text="立即注册", font=self.fonts['button'],
                                  bg=self.colors['primary'], fg='white', bd=0, cursor='hand2',
                                  activebackground=self.colors['primary_dark'],
-                                 command=self.register_user, pady=12)
+                                 command=self.register_user_handler, pady=12)
         register_btn.pack(fill='x', pady=(0, 15))
 
         """
@@ -375,11 +396,13 @@ class ModernRegisterApp:
         entry.config(fg=self.colors['light'])
 
         def on_focus_in(event):
+            str(event)
             if entry.get() == placeholder:
                 entry.delete(0, tk.END)
                 entry.config(fg=self.colors['dark'])
 
         def on_focus_out(event):
+            str(event)
             if not entry.get():
                 entry.insert(0, placeholder)
                 entry.config(fg=self.colors['light'])
@@ -387,10 +410,13 @@ class ModernRegisterApp:
         entry.bind('<FocusIn>', on_focus_in)
         entry.bind('<FocusOut>', on_focus_out)
 
-    def validate_field(self, field_name, variable, status_label):
+    @staticmethod
+    def validate_field(field_name, variable, status_label):
         # 字段验证
         value = variable.get()
-
+        str(value)
+        str(field_name)
+        r"""
         if field_name == "用户名":
             if len(value) < 3:
                 status_label.config(text="用户名至少3个字符", fg=self.colors['danger'])
@@ -438,8 +464,9 @@ class ModernRegisterApp:
             else:
                 status_label.config(text="✓ 手机号格式正确", fg=self.colors['success'])
                 return True
-
+        """
         status_label.config(text="")
+        print("验证字段：", field_name, "值：", value)
         return True
 
     def upload_avatar(self):
@@ -458,29 +485,16 @@ class ModernRegisterApp:
             except Exception as e:
                 messagebox.showerror("错误", f"头像上传失败: {str(e)}")
 
-    def register_user(self):
-        # 注册用户
-        if not self.validate_all_fields():
-            return
 
-        if not self.agree_terms_var.get():
-            messagebox.showerror("错误", "请先同意用户协议和隐私政策")
-            return
-
-        # 模拟注册过程
-        messagebox.showinfo("注册成功", "恭喜您，注册成功！\n系统将为您自动登录...")
-
-        # 这里可以添加实际的注册逻辑
-        self.root.destroy()
 
     def validate_all_fields(self):
         # 验证所有字段
         fields = [
-            ("用户名", self.username_var.get()),
-            ("邮箱", self.email_var.get()),
-            ("密码", self.password_var.get()),
-            ("确认密码", self.confirm_password_var.get()),
-            ("手机号", self.phone_var.get())
+            ("用户名", self.username_entry.get()),
+            # ("邮箱", self.email_var.get()),
+            ("密码", self.password_entry.get()),
+            ("确认密码", self.confirm_password_entry.get())
+            # ("手机号", self.phone_var.get())
         ]
 
         for field_name, value in fields:
@@ -492,21 +506,27 @@ class ModernRegisterApp:
 
     def setup_bindings(self):
         # 快捷键绑定
-        self.root.bind('<Return>', lambda e: self.register_user())
+        self.root.bind('<Return>', lambda e: self.register_user_handler())
         self.root.bind('<Escape>', lambda e: self.root.destroy())
 
-    def show_login(self):
+    @staticmethod
+    def show_login():
         messagebox.showinfo("登录", "跳转到登录页面")
 
-    def show_terms(self):
+    @staticmethod
+    def show_terms():
         messagebox.showinfo("用户协议", "这里显示用户协议内容")
 
-    def show_privacy(self):
+    @staticmethod
+    def show_privacy():
         messagebox.showinfo("隐私政策", "这里显示隐私政策内容")
 
 
 # 运行应用
 if __name__ == "__main__":
     root = tk.Tk()
-    app = ModernRegisterApp(root)
+    app = RegisterUI(root)
+    def register_user_handler():
+        print("注册用户")
+    app.register_user_handler = lambda : register_user_handler()
     root.mainloop()

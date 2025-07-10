@@ -8,6 +8,8 @@ import time
 
 class LoginUI:
     def __init__(self, self_root):
+        self.bottom_frame = None
+        self.show_register = None
         self.login_status_label = None
         self.login_btn = None
         self.colors = None
@@ -31,7 +33,7 @@ class LoginUI:
 
     def setup_window(self):
         self.root.title("WritePapers - 用户登录")
-        self.root.geometry("1000x700")
+        self.root.geometry("1000x780")
         self.root.resizable(True, True)
         self.root.configure(bg='#f5f5f5')
 
@@ -39,7 +41,7 @@ class LoginUI:
         self.root.update_idletasks()
         x = (self.root.winfo_screenwidth() // 2) - (900 // 2)
         y = (self.root.winfo_screenheight() // 2) - (600 // 2)
-        self.root.geometry(f"1000x700+{x}+{y}")
+        self.root.geometry(f"1000x780+{x}+{y}")
 
     def setup_styles(self):
         # 与IM界面保持一致的配色方案
@@ -148,14 +150,14 @@ class LoginUI:
             text_label.pack(side='left')
 
         # 底部提示
-        bottom_frame = tk.Frame(deco_frame, bg=self.colors['primary'])
-        bottom_frame.pack(side='bottom', pady=20)
+        self.bottom_frame = tk.Frame(deco_frame, bg=self.colors['primary'])
+        self.bottom_frame.pack(side='bottom', pady=20)
 
-        new_user_label = tk.Label(bottom_frame, text="还没有账户？", font=self.fonts['default'],
+        new_user_label = tk.Label(self.bottom_frame, text="还没有账户？", font=self.fonts['default'],
                                   bg=self.colors['primary'], fg='white')
         new_user_label.pack(side='left')
-
-        register_btn = tk.Button(bottom_frame, text="立即注册", font=self.fonts['bold'],
+    def create_register(self):
+        register_btn = tk.Button(self.bottom_frame, text="立即注册", font=self.fonts['bold'],
                                  bg=self.colors['primary'], fg='white', bd=0,
                                  activebackground=self.colors['primary_dark'],
                                  cursor='hand2', command=self.show_register,
@@ -197,7 +199,7 @@ class LoginUI:
         # self.create_social_login(form_container)
 
         # 其他链接
-        # self.create_footer_links(form_container)
+        self.create_footer_links(form_container)
 
     def create_login_form(self, parent):
         # 表单区域
@@ -520,9 +522,6 @@ class LoginUI:
         self.root.bind('<Return>', lambda e: self.login_user())
         self.root.bind('<Escape>', lambda e: self.root.destroy())
 
-    @staticmethod
-    def show_register():
-        messagebox.showinfo("注册", "跳转到注册页面")
 
     def show_forgot_password(self):
         # 忘记密码对话框
@@ -599,6 +598,9 @@ class LoginUI:
 
 # 运行应用
 if __name__ == "__main__":
+    def show_register():
+        messagebox.showinfo("功能", "注册功能已激活")
     root = tk.Tk()
     app = LoginUI(root)
+    app.show_register = lambda : show_register()
     root.mainloop()
