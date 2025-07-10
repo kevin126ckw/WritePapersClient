@@ -4,9 +4,15 @@
     <ip>127.0.0.1</ip>
     <port>3624</port>
   </server>
+  <database>
+    <file>data/client.sqlite</file>
+  </database>
   <account>
     <username>admin</username>
     <password>admin</password>
     <uid>0</uid>
   </account>
+  <debug>
+    <enabled>false</enabled>
+  </debug>
 </data>

@@ -114,6 +114,10 @@ class Database:
         try:
             result = self.select_sql("contact", "mem", f"id='{uid}'")
             return result[0][0]
+        except IndexError:
+            logger.debug(f"未找到用户 {uid} 的昵称")
+            logger.debug(f"数据库返回的结果:{result}")
+            return None
         except Exception as e:
             print(e)
             print(traceback.format_exc())
@@ -140,3 +144,14 @@ class Database:
             :param message_type: 消息类型
         """
         self.insert_sql("chat_history", "from_user, to_user, type, content, send_time", [from_user, to_user, message_type, content, send_time])
+    def get_last_chat_message(self, user_id, contact_id):
+        """
+        获取最近一条聊天消息
+        Args:
+            :param user_id: 用户id
+            :param contact_id: 联系人id
+        Returns:
+            :return list: 最近一条聊天消息
+        """
+        condition = f"(from_user={user_id} AND to_user={contact_id}) OR (from_user={contact_id} AND to_user={user_id})"
+        return self.select_sql("chat_history", "*", f"{condition} ORDER BY send_time DESC LIMIT 1")

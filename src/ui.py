@@ -7,6 +7,7 @@ from tkinter import ttk, messagebox
 
 class GUI:
     def __init__(self, root, load_messages):
+        self.user_frame = None
         self.username_label = None
         self.text_input = None
         self.msg_frame = None
@@ -45,7 +46,7 @@ class GUI:
         # self.load_contacts()
 
     def setup_window(self):
-        self.root.title("现代IM - 即时通讯")
+        self.root.title("WritePapers - 即时通讯")
         self.root.geometry("1200x800")
         self.root.minsize(900, 600)
         self.root.configure(bg='#f5f5f5')
@@ -436,15 +437,15 @@ class GUI:
             msg_wrapper.pack(anchor='e')
 
             msg_bubble = tk.Frame(msg_wrapper, bg=self.colors['primary'], padx=15, pady=10)
-            msg_bubble.pack(side='right')
+            msg_bubble.pack(side='right', anchor='e')
 
             msg_label = tk.Label(msg_bubble, text=message['content'], font=self.fonts['default'],
-                                bg=self.colors['primary'], fg='white', wraplength=300, justify='left')
+                                bg=self.colors['primary'], fg='white', wraplength=3000, justify='left')
             msg_label.pack()
 
             time_label = tk.Label(msg_wrapper, text=message['time'], font=self.fonts['small'],
                                  bg=self.colors['secondary'], fg=self.colors['light'])
-            time_label.pack(side='right', padx=(0, 10), pady=(5, 0))
+            time_label.pack(side='right', padx=(0, 10), pady=(5, 0), anchor='e')
 
         else:
             # 接收的消息（左对齐）
@@ -455,7 +456,7 @@ class GUI:
             msg_bubble.pack(side='left')
 
             msg_label = tk.Label(msg_bubble, text=message['content'], font=self.fonts['default'],
-                                bg='white', fg=self.colors['dark'], wraplength=300, justify='left')
+                                bg='white', fg=self.colors['dark'], wraplength=3000, justify='left')
             msg_label.pack()
 
             time_label = tk.Label(msg_wrapper, text=message['time'], font=self.fonts['small'],
@@ -518,7 +519,8 @@ class GUI:
     
     @staticmethod
     def show_chat():
-        messagebox.showinfo("功能", "聊天功能已激活")
+        # messagebox.showinfo("功能", "聊天功能已激活")
+        pass
     
     @staticmethod
     def show_contacts():
@@ -526,4 +528,5 @@ class GUI:
     
     @staticmethod
     def show_settings():
-        messagebox.showinfo("功能", "设置功能")
+        # messagebox.showinfo("功能", "设置功能")
+        pass

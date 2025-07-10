@@ -83,7 +83,12 @@ class ClientNetwork:
         self.offline_message_queue = queue.Queue()
 
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock.connect((self.server_host, self.server_port))
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            self.sock.connect((self.server_host, self.server_port))
+        except ConnectionRefusedError:
+            logger.critical("无法连接到服务器")
+            sys.exit(1)
         if self.sock:
             logger.info("成功连接到服务器")
 
@@ -100,11 +105,18 @@ class ClientNetwork:
         # 发送4字节的数据长度
         length = len(packet_bytes)
         length_bytes = length.to_bytes(4, byteorder='big')
-        self.sock.sendall(length_bytes)
-        # 发送实际数据
-        self.sock.sendall(packet_bytes)
-        if self.is_debug():
-            logger.debug(f"发送数据{packet}成功")
+        try:
+            self.sock.sendall(length_bytes)
+            # 发送实际数据
+            self.sock.sendall(packet_bytes)
+            if self.is_debug():
+                logger.debug(f"发送数据{packet}成功")
+        except ConnectionResetError:
+            logger.error("服务器已断开连接")
+            sys.exit(1)
+        except BrokenPipeError:
+            logger.error("服务器已断开连接")
+            sys.exit(1)
 
     def receive_packet(self):
         """
@@ -155,12 +167,7 @@ class ClientNetwork:
                 if msg["type"] == "new_message":
                     # 正常私聊消息
                     self.message_queue.put(msg)
-                elif msg["type"] == "login_result":
-                    # 发送消息结果
-                    if msg['payload']['success']:
-                        logger.info("登录成功")
-                    else:
-                        logger.info("登录失败")
+
                 elif msg["type"].endswith("result") or msg["type"].endswith("return"):
                     # 某些函数需要的返回值
                     self.return_queue.put(msg)

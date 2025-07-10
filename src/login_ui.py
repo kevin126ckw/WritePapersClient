@@ -1,13 +1,28 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import messagebox
+# from tkinter import ttk
 import re
-import hashlib
+# import hashlib
 import time
 
 
-class ModernLoginApp:
-    def __init__(self, root):
-        self.root = root
+class LoginUI:
+    def __init__(self, self_root):
+        self.login_status_label = None
+        self.login_btn = None
+        self.colors = None
+        self.login_blocked_until = None
+        self.fonts = None
+        self.username_var = None
+        self.password_var = None
+        self.remember_var = None
+        self.login_attempts = None
+        self.max_attempts = None
+        self.password_entry = None
+        self.username_entry = None
+        self.need_destroy = False
+        self.validate_login_handler = None
+        self.root = self_root
         self.setup_window()
         self.setup_styles()
         self.setup_variables()
@@ -15,7 +30,7 @@ class ModernLoginApp:
         self.setup_bindings()
 
     def setup_window(self):
-        self.root.title("现代IM - 用户登录")
+        self.root.title("WritePapers - 用户登录")
         self.root.geometry("1000x700")
         self.root.resizable(True, True)
         self.root.configure(bg='#f5f5f5')
@@ -94,7 +109,7 @@ class ModernLoginApp:
         logo_label.pack()
 
         # 应用名称
-        app_name_label = tk.Label(logo_frame, text="现代IM", font=self.fonts['title'],
+        app_name_label = tk.Label(logo_frame, text="WritePapers", font=self.fonts['title'],
                                   bg=self.colors['primary'], fg='white')
         app_name_label.pack(pady=(10, 0))
 
@@ -190,11 +205,11 @@ class ModernLoginApp:
         form_frame.pack(fill='x', pady=(0, 30))
 
         # 用户名输入
-        self.create_input_field(form_frame, "用户名/邮箱", self.username_var,
+        self.username_entry = self.create_input_field(form_frame, "用户名/邮箱", self.username_var,
                                 "请输入用户名", icon="👤")
 
         # 密码输入
-        self.create_input_field(form_frame, "密码", self.password_var,
+        self.password_entry = self.create_input_field(form_frame, "密码", self.password_var,
                                 "请输入密码", icon="🔒", is_password=True)
 
     def create_input_field(self, parent, label_text, variable, placeholder, icon=None, is_password=False):
@@ -234,11 +249,13 @@ class ModernLoginApp:
 
         # 焦点效果
         def on_focus_in(event):
+            str(event)
             input_container.configure(highlightbackground=self.colors['primary'],
                                       highlightcolor=self.colors['primary'],
                                       highlightthickness=2)
 
         def on_focus_out(event):
+            str(event)
             input_container.configure(highlightthickness=0)
 
         entry.bind('<FocusIn>', on_focus_in)
@@ -251,6 +268,7 @@ class ModernLoginApp:
                                  bd=0, cursor='hand2', activebackground=self.colors['input_bg'],
                                  command=lambda: self.toggle_password_visibility(entry, show_btn))
             show_btn.pack(side='right', padx=(0, 15))
+        return entry
 
     def create_login_options(self, parent):
         # 登录选项
@@ -372,11 +390,13 @@ class ModernLoginApp:
         entry.config(fg=self.colors['light'])
 
         def on_focus_in(event):
+            str(event)
             if entry.get() == placeholder:
                 entry.delete(0, tk.END)
                 entry.config(fg=self.colors['dark'])
 
         def on_focus_out(event):
+            str(event)
             if not entry.get():
                 entry.insert(0, placeholder)
                 entry.config(fg=self.colors['light'])
@@ -384,7 +404,8 @@ class ModernLoginApp:
         entry.bind('<FocusIn>', on_focus_in)
         entry.bind('<FocusOut>', on_focus_out)
 
-    def toggle_password_visibility(self, entry, button):
+    @staticmethod
+    def toggle_password_visibility(entry, button):
         # 切换密码可见性
         if entry.cget('show') == '*':
             entry.config(show='')
@@ -406,6 +427,7 @@ class ModernLoginApp:
             widget.tooltip = tooltip
 
         def on_leave(e):
+            str(e)
             if hasattr(widget, 'tooltip'):
                 widget.tooltip.destroy()
                 del widget.tooltip
@@ -433,13 +455,14 @@ class ModernLoginApp:
             self.login_status_label.config(text="请输入密码")
             return
 
+        """
         # 模拟登录验证
-        if self.validate_login(username, password):
+        if self.validate_login_handler(username, password):
             self.login_status_label.config(text="登录成功，正在跳转...", fg=self.colors['success'])
             self.login_btn.config(text="登录中...", state='disabled')
 
             # 模拟登录延迟
-            self.root.after(1500, self.login_success)
+            # self.root.after(1500, self.login_success)
         else:
             self.login_attempts += 1
             if self.login_attempts >= self.max_attempts:
@@ -450,8 +473,21 @@ class ModernLoginApp:
             else:
                 remaining_attempts = self.max_attempts - self.login_attempts
                 self.login_status_label.config(text=f"用户名或密码错误，还有 {remaining_attempts} 次尝试机会")
+        """
 
-    def validate_login(self, username, password):
+        self.validate_login_handler(username, password)
+        """
+        time.sleep(0.3)
+        if self.need_destroy:
+            self.root.after(0,self.login_success())
+        else:
+            print("登录失败")
+        """
+        # self.root.after(0,self.login_success())
+
+
+    @staticmethod
+    def validate_login(username, password):
         # 模拟登录验证（实际应用中应该连接到后端服务）
         valid_users = {
             "admin": "123456",
@@ -463,7 +499,8 @@ class ModernLoginApp:
 
     def login_success(self):
         # 登录成功
-        messagebox.showinfo("登录成功", "欢迎回来！正在为您启动应用...")
+        # messagebox.showinfo("登录成功", "欢迎回来！正在为您启动应用...")
+        self.root.quit()
         self.root.destroy()
 
     def unlock_login(self):
@@ -473,7 +510,8 @@ class ModernLoginApp:
         self.login_btn.config(state='normal')
         self.login_status_label.config(text="")
 
-    def social_login(self, platform):
+    @staticmethod
+    def social_login(platform):
         # 社交登录
         messagebox.showinfo("社交登录", f"正在使用{platform}登录...")
 
@@ -482,7 +520,8 @@ class ModernLoginApp:
         self.root.bind('<Return>', lambda e: self.login_user())
         self.root.bind('<Escape>', lambda e: self.root.destroy())
 
-    def show_register(self):
+    @staticmethod
+    def show_register():
         messagebox.showinfo("注册", "跳转到注册页面")
 
     def show_forgot_password(self):
@@ -527,7 +566,8 @@ class ModernLoginApp:
                              command=lambda: self.send_reset_email(email_var.get(), forgot_window))
         send_btn.pack(fill='x')
 
-    def send_reset_email(self, email, window):
+    @staticmethod
+    def send_reset_email(email, window):
         # 发送重置邮件
         if not email or email.startswith("请输入"):
             messagebox.showerror("错误", "请输入邮箱地址")
@@ -541,18 +581,24 @@ class ModernLoginApp:
         messagebox.showinfo("成功", f"重置链接已发送到 {email}\n请查收邮件并按照说明操作")
         window.destroy()
 
-    def show_help(self):
+    def destroy_window(self):
+        self.root.destroy()
+
+    @staticmethod
+    def show_help():
         messagebox.showinfo("帮助中心", "这里是帮助中心内容")
 
-    def show_privacy(self):
+    @staticmethod
+    def show_privacy():
         messagebox.showinfo("隐私政策", "这里是隐私政策内容")
 
-    def show_terms(self):
+    @staticmethod
+    def show_terms():
         messagebox.showinfo("用户协议", "这里是用户协议内容")
 
 
 # 运行应用
 if __name__ == "__main__":
     root = tk.Tk()
-    app = ModernLoginApp(root)
+    app = LoginUI(root)
     root.mainloop()
