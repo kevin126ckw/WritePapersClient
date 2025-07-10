@@ -225,26 +225,18 @@ class GUI:
         info_frame.pack(side='left', fill='y')
 
         name_label = tk.Label(info_frame, text=contact['name'], font=self.fonts['large_bold'],
-                             bg='white', fg=self.colors['dark'])
+                              bg='white', fg=self.colors['dark'])
         name_label.pack(anchor='w', pady=(15, 0))
-
-        # status_color = self.colors['online'] if contact['status'] == '在线' else \
-        #              self.colors['busy'] if contact['status'] == '忙碌' else self.colors['offline']
-
-        # status_label = tk.Label(info_frame, text=f"● {contact['status']}",
-        #                       font=self.fonts['small'], bg='white', fg=status_color)
-        # status_label.pack(anchor='w')
 
         # 聊天操作按钮
         action_frame = tk.Frame(self.chat_header, bg='white')
         action_frame.pack(side='right', fill='y')
 
-        # actions = ["📞", "📹", "ℹ️"]
         actions = []
         for action in actions:
             btn = tk.Button(action_frame, text=action, font=('Arial', 16), bg='white',
-                           fg=self.colors['light'], bd=0, cursor='hand2',
-                           activebackground=self.colors['hover'], padx=10)
+                            fg=self.colors['light'], bd=0, cursor='hand2',
+                            activebackground=self.colors['hover'], padx=10)
             btn.pack(side='right', padx=5, pady=20)
 
         # 聊天内容区域
@@ -260,11 +252,20 @@ class GUI:
         msg_scrollbar = ttk.Scrollbar(msg_container, orient='vertical', command=self.msg_canvas.yview)
         self.msg_frame = tk.Frame(self.msg_canvas, bg=self.colors['secondary'])
 
-        self.msg_frame.bind(
-            "<Configure>",
-            lambda e: self.msg_canvas.configure(scrollregion=self.msg_canvas.bbox("all"))
-        )
+        # 关键修改：绑定 msg_frame 的配置变化事件
+        def configure_msg_frame(event):
+            self.msg_canvas.configure(scrollregion=self.msg_canvas.bbox("all"))
 
+        self.msg_frame.bind("<Configure>", configure_msg_frame)
+
+        # 关键修改：绑定 canvas 的配置变化事件，调整 frame 宽度
+        def configure_canvas(event):
+            canvas_width = event.width
+            self.msg_canvas.itemconfig(self.msg_canvas.find_all()[0], width=canvas_width)
+
+        self.msg_canvas.bind('<Configure>', configure_canvas)
+
+        # 创建 canvas 窗口
         self.msg_canvas.create_window((0, 0), window=self.msg_frame, anchor="nw")
         self.msg_canvas.configure(yscrollcommand=msg_scrollbar.set)
 
@@ -281,12 +282,11 @@ class GUI:
         toolbar.pack(fill='x', pady=(0, 10))
         toolbar.pack_propagate(False)
 
-        # tools = ["😊", "📎", "🖼️", "📹"]
         tools = []
         for tool in tools:
             btn = tk.Button(toolbar, text=tool, font=('Arial', 14), bg='white',
-                           fg=self.colors['light'], bd=0, cursor='hand2',
-                           activebackground=self.colors['hover'], padx=8)
+                            fg=self.colors['light'], bd=0, cursor='hand2',
+                            activebackground=self.colors['hover'], padx=8)
             btn.pack(side='left', padx=2, pady=5)
 
         # 文本输入和发送区域
@@ -295,14 +295,14 @@ class GUI:
 
         # 文本输入框
         self.text_input = tk.Text(text_send_frame, font=self.fonts['default'], bg=self.colors['secondary'],
-                                 bd=0, relief='flat', fg=self.colors['dark'], wrap='word', height=3)
+                                  bd=0, relief='flat', fg=self.colors['dark'], wrap='word', height=3)
         self.text_input.pack(side='left', fill='both', expand=True, padx=(0, 10))
 
         # 发送按钮
         send_btn = tk.Button(text_send_frame, text="发送", font=self.fonts['bold'],
-                            bg=self.colors['primary'], fg='white', bd=0, cursor='hand2',
-                            activebackground=self.colors['primary_dark'], padx=20, pady=10,
-                            command=lambda: self.send_message_handler(contact))
+                             bg=self.colors['primary'], fg='white', bd=0, cursor='hand2',
+                             activebackground=self.colors['primary_dark'], padx=20, pady=10,
+                             command=lambda: self.send_message_handler(contact))
         send_btn.pack(side='right', pady=5)
 
         # 加载历史消息
@@ -429,6 +429,8 @@ class GUI:
 
     def display_message(self, message):
         msg_container = tk.Frame(self.msg_frame, bg=self.colors['secondary'])
+        # msg_container = tk.Frame(self.msg_frame, bg="#030507")
+
         msg_container.pack(fill='x', padx=20, pady=8)
 
         if message['type'] == 'sent':
