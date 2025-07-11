@@ -142,6 +142,13 @@ def process_message(net_module):
 def validate_login(username, password):
     global login_ui_class
     net.send_packet("login", {"username": username, "password": password})
+    if login_ui_class.remember_var.get():
+        if lib.read_xml("account/username") == username and lib.read_xml("account/password") == password:
+            return True
+        lib.write_xml("account/username", username)
+        lib.write_xml("account/password", password)
+        lib.write_xml("account/uid", uid)
+        logger.debug(f"写入配置文件,username:{username}, password:{password}, uid:{uid}")
     return True
 
 def load_messages(contact, display_message):

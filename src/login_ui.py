@@ -33,7 +33,7 @@ class LoginUI:
 
     def setup_window(self):
         self.root.title("WritePapers - 用户登录")
-        self.root.geometry("1000x780")
+        self.root.geometry("1320x780")
         self.root.resizable(True, True)
         self.root.configure(bg='#f5f5f5')
 
@@ -41,7 +41,7 @@ class LoginUI:
         self.root.update_idletasks()
         x = (self.root.winfo_screenwidth() // 2) - (900 // 2)
         y = (self.root.winfo_screenheight() // 2) - (600 // 2)
-        self.root.geometry(f"1000x780+{x}+{y}")
+        self.root.geometry(f"1320x780+{x}+{y}")
 
     def setup_styles(self):
         # 与IM界面保持一致的配色方案
