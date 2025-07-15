@@ -1,6 +1,7 @@
 #!/usr/bin/python
 import tkinter as tk
 from tkinter import ttk, messagebox
+
 # from tkinter import font
 # import datetime
 # import json
@@ -43,6 +44,8 @@ class GUI:
 
         self.current_chat = None
         self.messages = {}
+        # 添加好友相关的回调函数
+        self.add_friend_handler = None
         # self.load_contacts()
 
     def setup_window(self):
@@ -61,20 +64,20 @@ class GUI:
     def setup_styles(self):
         # 现代化配色方案
         self.colors = {
-            'primary': '#4f46e5',      # 主色调 - 靛蓝
+            'primary': '#4f46e5',  # 主色调 - 靛蓝
             'primary_dark': '#3730a3',  # 深主色
-            'secondary': '#f8fafc',     # 次要背景色
-            'accent': '#06b6d4',        # 强调色 - 青色
-            'success': '#10b981',       # 成功色 - 绿色
-            'warning': '#f59e0b',       # 警告色 - 黄色
-            'danger': '#ef4444',        # 危险色 - 红色
-            'dark': '#1f2937',          # 深色文字
-            'light': '#6b7280',         # 浅色文字
-            'border': '#e5e7eb',        # 边框色
-            'hover': '#f3f4f6',         # 悬停色
-            'online': '#10b981',        # 在线状态
-            'offline': '#6b7280',       # 离线状态
-            'busy': '#f59e0b'           # 忙碌状态
+            'secondary': '#f8fafc',  # 次要背景色
+            'accent': '#06b6d4',  # 强调色 - 青色
+            'success': '#10b981',  # 成功色 - 绿色
+            'warning': '#f59e0b',  # 警告色 - 黄色
+            'danger': '#ef4444',  # 危险色 - 红色
+            'dark': '#1f2937',  # 深色文字
+            'light': '#6b7280',  # 浅色文字
+            'border': '#e5e7eb',  # 边框色
+            'hover': '#f3f4f6',  # 悬停色
+            'online': '#10b981',  # 在线状态
+            'offline': '#6b7280',  # 离线状态
+            'busy': '#f59e0b'  # 忙碌状态
         }
 
         # 自定义字体
@@ -109,7 +112,7 @@ class GUI:
 
         # 用户头像
         avatar_label = tk.Label(self.user_frame, text="👤", font=('Arial', 24),
-                               bg=self.colors['primary'], fg='white')
+                                bg=self.colors['primary'], fg='white')
         avatar_label.pack()
 
         # 用户名
@@ -131,10 +134,10 @@ class GUI:
 
         for icon, tooltip, command in nav_buttons:
             btn = tk.Button(self.nav_frame, text=icon, font=('Arial', 20),
-                           bg=self.colors['primary'], fg='white', bd=0,
-                           activebackground=self.colors['primary_dark'],
-                           activeforeground='white', cursor='hand2',
-                           command=command, width=3, height=2)
+                            bg=self.colors['primary'], fg='white', bd=0,
+                            activebackground=self.colors['primary_dark'],
+                            activeforeground='white', cursor='hand2',
+                            command=command, width=3, height=2)
             btn.pack(pady=5)
             self.create_tooltip(btn, tooltip)
 
@@ -149,9 +152,20 @@ class GUI:
         title_frame.pack(fill='x', padx=20, pady=(20, 0))
         title_frame.pack_propagate(False)
 
+        # 左侧：标题
         title_label = tk.Label(title_frame, text="消息", font=self.fonts['title'],
-                              bg='white', fg=self.colors['dark'])
+                               bg='white', fg=self.colors['dark'])
         title_label.pack(side='left', pady=15)
+
+        # 右侧：添加好友按钮
+        add_friend_btn = tk.Button(title_frame, text="➕", font=('Arial', 16),
+                                   bg=self.colors['primary'], fg='white', bd=0,
+                                   activebackground=self.colors['primary_dark'],
+                                   activeforeground='white', cursor='hand2',
+                                   command=self.show_add_friend_dialog,
+                                   width=3, height=1, relief='flat')
+        add_friend_btn.pack(side='right', pady=15)
+        self.create_tooltip(add_friend_btn, "添加好友")
 
         # 搜索框
         search_frame = tk.Frame(self.contact_frame, bg='white')
@@ -159,8 +173,8 @@ class GUI:
 
         self.search_var = tk.StringVar()
         search_entry = tk.Entry(search_frame, textvariable=self.search_var,
-                               font=self.fonts['default'], bg=self.colors['secondary'],
-                               bd=0, relief='flat', fg=self.colors['dark'])
+                                font=self.fonts['default'], bg=self.colors['secondary'],
+                                bd=0, relief='flat', fg=self.colors['dark'])
         search_entry.pack(fill='x', ipady=8, padx=2)
         search_entry.insert(0, "🔍 搜索联系人...")
 
@@ -184,6 +198,108 @@ class GUI:
         self.contact_canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
 
+    def show_add_friend_dialog(self):
+        """显示添加好友对话框"""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("添加好友")
+        dialog.geometry("400x400")
+        dialog.resizable(False, False)
+        dialog.transient(self.root)
+        dialog.grab_set()
+
+        # 居中显示
+        dialog.geometry("+%d+%d" % (
+            self.root.winfo_rootx() + (self.root.winfo_width() // 2) - 200,
+            self.root.winfo_rooty() + (self.root.winfo_height() // 2) - 150
+        ))
+
+        # 主容器
+        main_frame = tk.Frame(dialog, bg='white', padx=30, pady=30)
+        main_frame.pack(fill='both', expand=True)
+
+        # 标题
+        title_label = tk.Label(main_frame, text="添加好友", font=self.fonts['title'],
+                               bg='white', fg=self.colors['dark'])
+        title_label.pack(pady=(0, 20))
+
+        # 好友ID/用户名输入
+        id_frame = tk.Frame(main_frame, bg='white')
+        id_frame.pack(fill='x', pady=(0, 15))
+
+        id_label = tk.Label(id_frame, text="好友ID/用户名:", font=self.fonts['default'],
+                            bg='white', fg=self.colors['dark'])
+        id_label.pack(anchor='w', pady=(0, 5))
+
+        id_entry = tk.Entry(id_frame, font=self.fonts['default'], bg=self.colors['secondary'],
+                            bd=0, relief='flat', fg=self.colors['dark'])
+        id_entry.pack(fill='x', ipady=8, padx=2)
+        id_entry.focus()
+
+        # 验证消息输入
+        msg_frame = tk.Frame(main_frame, bg='white')
+        msg_frame.pack(fill='x', pady=(0, 20))
+
+        msg_label = tk.Label(msg_frame, text="验证口令:", font=self.fonts['default'],
+                             bg='white', fg=self.colors['dark'])
+        msg_label.pack(anchor='w', pady=(0, 5))
+
+        msg_text = tk.Text(msg_frame, height=4, font=self.fonts['default'],
+                           bg=self.colors['secondary'], bd=0, relief='flat',
+                           fg=self.colors['dark'], wrap='word')
+        msg_text.pack(fill='x', padx=2)
+        msg_text.insert('1.0', "")
+
+        # 按钮区域
+        btn_frame = tk.Frame(main_frame, bg='white')
+        btn_frame.pack(fill='x', pady=(20, 0))
+
+        # 取消按钮
+        cancel_btn = tk.Button(btn_frame, text="取消", font=self.fonts['default'],
+                               bg=self.colors['border'], fg=self.colors['dark'], bd=0,
+                               activebackground=self.colors['hover'], cursor='hand2',
+                               padx=20, pady=8, command=dialog.destroy)
+        cancel_btn.pack(side='right', padx=(10, 0))
+
+        # 添加按钮
+        def add_friend():
+            friend_id = id_entry.get().strip()
+            verify_token = msg_text.get('1.0', tk.END).strip()
+
+            if not friend_id:
+                messagebox.showerror("错误", "请输入好友ID或用户名", parent=dialog)
+                return
+
+            # 调用添加好友的回调函数
+            if self.add_friend_handler:
+                success = self.add_friend_handler(friend_id, verify_token)
+                if success:
+                    # messagebox.showinfo("成功", f"已向 {friend_id} 发送好友请求", parent=dialog)
+                    dialog.destroy()
+                else:
+                    # messagebox.showerror("失败", "添加好友失败，请检查ID是否正确", parent=dialog)
+                    pass
+            else:
+                # 默认行为：显示确认消息
+                messagebox.showinfo("添加好友", f"正在向 {friend_id} 发送好友请求...", parent=dialog)
+                dialog.destroy()
+
+        add_btn = tk.Button(btn_frame, text="添加好友", font=self.fonts['bold'],
+                            bg=self.colors['primary'], fg='white', bd=0,
+                            activebackground=self.colors['primary_dark'], cursor='hand2',
+                            padx=20, pady=8, command=add_friend)
+        add_btn.pack(side='right')
+
+        # 绑定回车键
+        def on_enter(event):
+            str(event)
+            add_friend()
+
+        # dialog.bind('<Return>', on_enter)
+
+    def set_add_friend_handler(self, handler):
+        """设置添加好友的处理函数"""
+        self.add_friend_handler = handler
+
     def create_chat_area(self):
         # 聊天区域
         self.chat_frame = tk.Frame(self.main_container, bg='white')
@@ -199,8 +315,8 @@ class GUI:
         welcome_frame.pack(fill='both', expand=True)
 
         welcome_label = tk.Label(welcome_frame, text="💬\n选择一个联系人开始聊天",
-                                font=self.fonts['large'], bg='white',
-                                fg=self.colors['light'], justify='center')
+                                 font=self.fonts['large'], bg='white',
+                                 fg=self.colors['light'], justify='center')
         welcome_label.pack(expand=True)
 
         self.chat_content = welcome_frame
@@ -254,6 +370,7 @@ class GUI:
 
         # 关键修改：绑定 msg_frame 的配置变化事件
         def configure_msg_frame(event):
+            str(event)
             self.msg_canvas.configure(scrollregion=self.msg_canvas.bbox("all"))
 
         self.msg_frame.bind("<Configure>", configure_msg_frame)
@@ -341,12 +458,12 @@ class GUI:
         top_row.bind("<Button-1>", lambda e, c=contact: self.select_contact(c))
 
         name_label = tk.Label(top_row, text=contact['name'], font=self.fonts['bold'],
-                             bg='white', fg=self.colors['dark'])
+                              bg='white', fg=self.colors['dark'])
         name_label.pack(side='left')
         name_label.bind("<Button-1>", lambda e, c=contact: self.select_contact(c))
 
         time_label = tk.Label(top_row, text=contact['time'], font=self.fonts['small'],
-                             bg='white', fg=self.colors['light'])
+                              bg='white', fg=self.colors['light'])
         time_label.pack(side='right')
         time_label.bind("<Button-1>", lambda e, c=contact: self.select_contact(c))
 
@@ -356,7 +473,7 @@ class GUI:
         bottom_row.bind("<Button-1>", lambda e, c=contact: self.select_contact(c))
 
         msg_label = tk.Label(bottom_row, text=contact['last_msg'], font=self.fonts['default'],
-                            bg='white', fg=self.colors['light'])
+                             bg='white', fg=self.colors['light'])
         msg_label.pack(side='left')
         msg_label.bind("<Button-1>", lambda e, c=contact: self.select_contact(c))
 
@@ -442,11 +559,11 @@ class GUI:
             msg_bubble.pack(side='right', anchor='e')
 
             msg_label = tk.Label(msg_bubble, text=message['content'], font=self.fonts['default'],
-                                bg=self.colors['primary'], fg='white', wraplength=3000, justify='left')
+                                 bg=self.colors['primary'], fg='white', wraplength=3000, justify='left')
             msg_label.pack()
 
             time_label = tk.Label(msg_wrapper, text=message['time'], font=self.fonts['small'],
-                                 bg=self.colors['secondary'], fg=self.colors['light'])
+                                  bg=self.colors['secondary'], fg=self.colors['light'])
             time_label.pack(side='right', padx=(0, 10), pady=(5, 0), anchor='e')
 
         else:
@@ -458,11 +575,11 @@ class GUI:
             msg_bubble.pack(side='left')
 
             msg_label = tk.Label(msg_bubble, text=message['content'], font=self.fonts['default'],
-                                bg='white', fg=self.colors['dark'], wraplength=3000, justify='left')
+                                 bg='white', fg=self.colors['dark'], wraplength=3000, justify='left')
             msg_label.pack()
 
             time_label = tk.Label(msg_wrapper, text=message['time'], font=self.fonts['small'],
-                                 bg=self.colors['secondary'], fg=self.colors['light'])
+                                  bg=self.colors['secondary'], fg=self.colors['light'])
             time_label.pack(side='left', padx=(10, 0), pady=(5, 0))
 
         # 滚动到底部
@@ -500,9 +617,9 @@ class GUI:
         def on_enter(e):
             tooltip = tk.Toplevel()
             tooltip.wm_overrideredirect(True)
-            tooltip.wm_geometry(f"+{e.x_root+10}+{e.y_root+10}")
+            tooltip.wm_geometry(f"+{e.x_root + 10}+{e.y_root + 10}")
             label = tk.Label(tooltip, text=text, font=self.fonts['small'],
-                           bg='black', fg='white', padx=5, pady=2)
+                             bg='black', fg='white', padx=5, pady=2)
             label.pack()
             widget.tooltip = tooltip
 
@@ -517,17 +634,18 @@ class GUI:
 
     def setup_bindings(self):
         # 快捷键绑定
-        self.root.bind('<Control-Return>', lambda e: self.send_message_handler(self.current_chat) if self.current_chat else None)
-    
+        self.root.bind('<Control-Return>',
+                       lambda e: self.send_message_handler(self.current_chat) if self.current_chat else None)
+
     @staticmethod
     def show_chat():
         # messagebox.showinfo("功能", "聊天功能已激活")
         pass
-    
+
     @staticmethod
     def show_contacts():
         messagebox.showinfo("功能", "联系人管理功能")
-    
+
     @staticmethod
     def show_settings():
         # messagebox.showinfo("功能", "设置功能")

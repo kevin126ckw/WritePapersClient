@@ -6,7 +6,6 @@
 # @Desc    :
 # @Author  : Kevin Chang
 import sqlite3
-import traceback
 
 import structlog
 
@@ -29,8 +28,7 @@ class Database:
             self.conn = sqlite3.connect(file , check_same_thread=False)
             self.cursor = self.conn.cursor()
         except sqlite3.Error as e:
-            logger.error(f"Error connecting to database: {e}")
-            logger.critical(traceback.format_exc())
+            logger.error(f"Error connecting to database: {e}",exec_info=True)
 
     def run_sql(self, command, params=None):
         """
@@ -63,9 +61,10 @@ class Database:
             sql = f"INSERT INTO {table} ({columns}) VALUES ({placeholders})"
             self.cursor.execute(sql, tuple(values))
             self.conn.commit()
-        except sqlite3.Error as e:
+        except sqlite3.OperationalError as e:
             logger.error(f"插入数据失败: {e}")
-            logger.critical(traceback.format_exc())
+        except sqlite3.Error as e:
+            logger.error(f"插入数据失败: {e}",exec_info=True)
 
     def select_sql(self, table, columns, condition=None):
         """
@@ -82,9 +81,21 @@ class Database:
             result = self.run_sql(sql)
             return result
         except sqlite3.Error as e:
-            logger.error(f"查询数据失败: {e}")
-            logger.critical(traceback.format_exc())
+            logger.error(f"查询数据失败: {e}",exec_info=True)
             return None
+    def update_sql(self, table, columns, values, condition):
+        """
+        Args:
+            :param table: 表
+            :param columns: 列
+            :param values: 值
+            :param condition: 条件
+        """
+        try:
+            set_clause = f"{columns} = ?"
+            self.cursor.execute(f"UPDATE {table} SET {set_clause} WHERE {condition}", (values,))
+        except sqlite3.Error as e:
+            logger.error(f"更新数据失败: {e}",exec_info=True)
 
     def close(self):
         """
@@ -113,14 +124,16 @@ class Database:
         """
         try:
             result = self.select_sql("contact", "mem", f"id='{uid}'")
+            logger.debug(f"昵称查询第一次结果：{result}")
+            if not result:
+                if self.select_sql("contact", "name", f"id='{uid}'"):
+                    return self.select_sql("contact", "name", f"id='{uid}'")[0][0]
             return result[0][0]
         except IndexError:
-            logger.debug(f"未找到用户 {uid} 的昵称")
-            logger.debug(f"数据库返回的结果:{result}")
+            logger.error(f"未找到用户 {uid} 的昵称",exc_info=True)
             return None
         except Exception as e:
-            print(e)
-            print(traceback.format_exc())
+            logger.error(f"找到用户 {uid} 的昵称时发生错误{e}",exec_info=True)
             return None
     def save_contact(self, uid, username, name, mem):
         """
@@ -155,3 +168,75 @@ class Database:
         """
         condition = f"(from_user={user_id} AND to_user={contact_id}) OR (from_user={contact_id} AND to_user={user_id})"
         return self.select_sql("chat_history", "*", f"{condition} ORDER BY send_time DESC LIMIT 1")
+    def get_metadata(self, column):
+        """
+        获取元数据
+        Args:
+            :param column: 列名
+        Returns:
+            :return: 元数据
+        """
+        try:
+            result = self.select_sql("meta", column)
+            return result[0][0] if result else None
+        except Exception as e:
+            logger.error(e, exc_info=True)
+    def run_sql_file(self, sql_file):
+        with open(sql_file, encoding='utf-8', mode='r') as f:
+            # 读取整个sql文件，以分号切割。[:-1]删除最后一个元素，也就是空字符串
+            sql_list = f.read().split(';')[:-1]
+            for x in sql_list:
+                # 判断包含空行的
+                if '\n' in x:
+                    # 替换空行为1个空格
+                    x = x.replace('\n', ' ')
+
+                # 判断多个空格时
+                if '    ' in x:
+                    # 替换为空
+                    x = x.replace('    ', '')
+
+                # sql语句添加分号结尾
+                sql_item = x + ';'
+                self.run_sql(sql_item)
+    def create_tables_if_not_exists(self):
+        sql_item1 = """
+        create table if not exists chat_history
+(
+    "index"   integer
+        constraint chat_history_pk
+            primary key autoincrement,
+    from_user INTEGER,
+    to_user   INTEGER,
+    type      TEXT,
+    content   ANY TEXT,
+    send_time integer
+);
+        """
+        sql_item2 = """
+        create unique index if not exists chat_history_index
+    on chat_history ("index");
+        """
+        sql_item3 = """
+        create table if not exists contact
+(
+    id       integer
+        constraint contact_pk
+            primary key autoincrement,
+    username TEXT,
+    name     text,
+    mem      text
+);
+
+        """
+        sql_item4 = """
+        create table if not exists meta
+(
+    uid integer
+)
+    strict;
+        """
+        self.run_sql(sql_item1)
+        self.run_sql(sql_item2)
+        self.run_sql(sql_item3)
+        self.run_sql(sql_item4)

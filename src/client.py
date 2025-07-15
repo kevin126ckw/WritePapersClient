@@ -30,12 +30,15 @@ from login_ui import LoginUI
 from reg_ui import RegisterUI
 
 uid = NotImplemented
+username = NotImplemented
+password = NotImplemented
 login_ui_class = NotImplemented
 login_root = NotImplemented
 register_root = NotImplemented
 register_class = NotImplemented
 root = NotImplemented
 gui = NotImplemented
+msg_uid = NotImplemented
 
 logged_in = False
 
@@ -63,10 +66,17 @@ def _handle_chat_message(payload):
     send_time = payload['time']
     message_content = str(payload['message'])
     db.save_chat_message(from_user, uid, message_content, send_time)
-    if gui.current_chat['id'] == int(from_user):
-        gui.display_message(
-            {"content":message_content, "time":time.strftime("%H:%M", time.localtime(send_time)), "type":"received", "sender":db.get_mem_by_uid(from_user)})
+    if gui.current_chat:
+        if gui.current_chat['id'] == int(from_user):
+            gui.display_message(
+                {"content":message_content, "time":time.strftime("%H:%M", time.localtime(send_time)), "type":"received", "sender":db.get_mem_by_uid(from_user)})
+    if "need_update_contact" in payload:
+        logger.debug("need_update_contact存在")
+        if not payload['need_update_contact']:
+            logger.debug("不需要更新联系人")
+            return
     logger.info(f"{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(send_time))} {db.get_mem_by_uid(from_user)}: {message_content}")
+    logger.debug(f"新消息payload:{payload}")
     update_contacts()
 
 def process_message(net_module):
@@ -74,20 +84,18 @@ def process_message(net_module):
     处理消息队列
     :return None        
     """
-    global login_root, login_ui_class, logged_in, register_class
+    global login_root, login_ui_class, logged_in, register_class, uid, username, password, msg_uid
 
     # 离线消息
     while not net_module.offline_message_queue.empty():
         msg = net_module.offline_message_queue.get_nowait()
-        if is_debug():
-            logger.debug(f"离线消息：{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(msg[3]))} {db.get_mem_by_uid(msg[1])}:{msg[0]}")
+        logger.debug(f"离线消息：{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(msg[3]))} {db.get_mem_by_uid(msg[1])}:{msg[0]}")
         db.save_chat_message(msg[1], msg[2], msg[0], msg[3])
         if gui.scrollable_frame is not None:
             update_contacts()
         else:
             gui.root.after(1, lambda: update_contacts())
-            if is_debug():
-                logger.debug("GUI未初始化，1000ms后尝试更新联系人")
+            logger.debug("GUI未初始化，1000ms后尝试更新联系人")
 
     # 普通消息
     while not net_module.message_queue.empty():
@@ -126,29 +134,39 @@ def process_message(net_module):
         elif msg['type'] == "login_result":
             if msg['payload']['success']:
                 logger.info("登录成功")
+                msg_uid = msg['payload']['uid']
                 logged_in = True
                 #login_ui_class.need_destroy = True
                 login_ui_class.root.after(0, lambda: login_ui_class.login_success())
-                if is_debug():
-                    logger.debug("窗口销毁")
+                logger.debug("窗口销毁")
             else:
                 logger.error("登录失败")
                 logged_in = False
+                tk.messagebox.showerror("错误", "登录失败")
                 # logger.debug("窗口销毁")
+        elif msg['type'] == "add_friend_result":
+            if msg['payload']['success']:
+                logger.info("添加好友成功")
+                db.save_contact(msg['payload']['friend_uid'],msg['payload']['friend_username'],msg['payload']['friend_name'], "")
+                messagebox.showinfo("添加好友成功", "添加好友成功")
+                gui.root.after(0, lambda: update_contacts())
+            else:
+                logger.error("添加好友失败")
+                messagebox.showerror("添加好友失败", "添加好友失败")
 
 
     # 未完待续
 
-def validate_login(username, password):
+def validate_login(login_username, login_password):
     global login_ui_class
-    net.send_packet("login", {"username": username, "password": password})
+    login(login_username, login_password)
     if login_ui_class.remember_var.get():
-        if lib.read_xml("account/username") == username and lib.read_xml("account/password") == password:
+        if lib.read_xml("account/username") == login_username and lib.read_xml("account/password") == login_password:
             return True
-        lib.write_xml("account/username", username)
-        lib.write_xml("account/password", password)
+        lib.write_xml("account/username", login_username)
+        lib.write_xml("account/password", login_password)
         lib.write_xml("account/uid", uid)
-        logger.debug(f"写入配置文件,username:{username}, password:{password}, uid:{uid}")
+        logger.debug(f"写入配置文件,username:{login_username}, password:{login_password}, uid:{uid}")
     return True
 
 def load_messages(contact, display_message):
@@ -167,8 +185,7 @@ def load_messages(contact, display_message):
     messages = db.select_sql("chat_history", "*", f"to_user={contact["id"]} or from_user={contact["id"]}")
 
     for msg in messages:
-        if is_debug():
-            logger.debug(f"正在加载消息：{msg}")# (1, 0, 0, 'text', 'hi', 1745813243.4815726)
+        logger.debug(f"正在加载消息：{msg}")# (1, 0, 0, 'text', 'hi', 1745813243.4815726)
         if int(msg[1]) == int(uid):
             display_message(
                 {"content":msg[4], "time":time.strftime("%H:%M", time.localtime(msg[5])), "type":"sent", "sender":"我"})
@@ -180,16 +197,16 @@ def load_messages(contact, display_message):
             display_message(
                 {"content": msg[4], "time": time.strftime("%H:%M", time.localtime(msg[5])), "type": "sent"})
 
-def send_message(gui, contact):
+def send_message(gui_class, contact):
     """
     发送消息
     Params:
-        :param gui: gui类
+        :param gui_class: gui类
         :param contact: 当前选中的联系人
     Returns:
         :return: None
     """
-    content = gui.text_input.get("1.0", tk.END).strip()
+    content = gui_class.text_input.get("1.0", tk.END).strip()
     if not content:
         return
 
@@ -202,10 +219,10 @@ def send_message(gui, contact):
     db.save_chat_message(uid, contact["id"], content, time.time())
 
     # 显示消息
-    gui.display_message(message)
+    gui_class.display_message(message)
 
     # 清空输入框
-    gui.text_input.delete("1.0", tk.END)
+    gui_class.text_input.delete("1.0", tk.END)
 
     update_contacts()
 
@@ -216,23 +233,35 @@ def process_message_thread():
         else:
             time.sleep(0.01)
 
-def login(username, password):
-    net.send_packet("login", {"username": username, "password": password})
+def login(login_username, login_password):
+    global username, password
+    net.send_packet("login", {"username": login_username, "password": login_password})
+    username = login_username
+    password = login_password
 
 def update_contacts():
     contacts = []
-    for contact in db.select_sql("contact", "mem, id"):
+    for contact in db.select_sql("contact", "mem, id, name"):
         last_message = db.get_last_chat_message(uid, contact[1])
-        contacts.append({"name": contact[0], "id": contact[1], "avatar": "👨", "last_msg": last_message[0][4],
-                         "time": time.strftime("%H:%M", time.localtime(last_message[0][5]))})
+        if contact[0]:
+            contacts.append({"name": contact[0], "id": contact[1], "avatar": "👨", "last_msg": last_message[0][4],
+                             "time": time.strftime("%H:%M", time.localtime(last_message[0][5]))})
+        else:
+            if contact[2]:
+                contacts.append({"name": contact[2], "id": contact[1], "avatar": "👨", "last_msg": last_message[0][4],
+                                 "time": time.strftime("%H:%M", time.localtime(last_message[0][5]))})
+            else:
+                contacts.append({"name": "未知", "id": contact[1], "avatar": "👨", "last_msg": last_message[0][4],
+                                 "time": time.localtime(last_message[0][5])
+                })
     gui.contacts = contacts
     gui.load_contacts()
 
 def register_user_handler(window_class):
     print("注册用户")
-    username = window_class.username_entry.get()
-    password = window_class.password_entry.get()
-    print(f"用户名:{username}, 密码:{password}")
+    register_username = window_class.username_entry.get()
+    register_password = window_class.password_entry.get()
+    print(f"用户名:{register_username}, 密码:{password}")
     print(window_class.agree_terms_var.get())
     # 注册用户
     if not window_class.validate_all_fields():
@@ -248,7 +277,7 @@ def register_user_handler(window_class):
 
     # 这里可以添加实际的注册逻辑
     # window_class.root.destroy()
-    net.send_packet("register_account", {"username": username, "password": password})
+    net.send_packet("register_account", {"username": register_username, "password": register_password})
 def start_register():
     global register_root,register_class, login_ui_class
     print("开始注册")
@@ -260,38 +289,64 @@ def start_register():
     register_class.setup_bindings()
     register_root.mainloop()
     print("注册界面创建完毕")
+def handle_add_friend(friend_id, verify_token):
+    try:
+        friend_uid = int(friend_id)
+        if db.select_sql("contact", "id", f"id='{friend_uid}'"):
+            tk.messagebox.showwarning("提示", f"{friend_id} 已经是你的好友了")
+            return False
+        net.send_packet("add_friend", {"friend_id_type": "uid", "friend_id": friend_uid, "verify_token": verify_token})
+    except ValueError:
+        friend_username = friend_id
+        if db.select_sql("contact", "id", f"username='{friend_username}'"):
+            tk.messagebox.showwarning("提示", f"{friend_id} 已经是你的好友了")
+            return False
+        net.send_packet("add_friend", {"friend_id_type": "username", "friend_id": friend_username, "verify_token": verify_token})
+    return True
+def check_database_uid():
+    global msg_uid, uid
+    if uid != msg_uid:
+        uid = msg_uid
+        if lib.read_xml("account/username") == username and lib.read_xml("account/password") == password:
+            lib.write_xml("account/uid", uid)
+        if db.get_metadata("uid") is None:
+            db.insert_sql("meta", "uid", [uid])
+        elif int(db.get_metadata("uid")) != int(msg_uid):
+            tk.messagebox.showwarning("警告",
+                                      f"数据库中保存的UID与当前登录的UID不一致，这可能不是你的数据库！\n数据库中的UID为{db.get_metadata('uid')}\n您登录的UID为{msg_uid}\n即将退出程序！")
+            exit_program()
+            return
 def main():
     """
     测试客户端
     Returns:
         :return None
     """
-    global net, db, uid, root, login_ui_class, login_root, logged_in, gui
+    global net, db, uid, root, login_ui_class, login_root, logged_in, gui, username, password
 
-    answer = None
     # username = "admin"
     # password = "admin"
     # uid = 0
+    username = lib.read_xml("account/username", "data/")
+    password = lib.read_xml("account/password", "data/")
+    uid = lib.read_xml("account/uid", "data/")
+    if not username:
+        username = ""
+    if not password:
+        password = ""
+    if not uid:
+        uid = NotImplemented
     if is_debug():
         logger.debug("调试模式已开启")
         answer = input("是否从xml读取用户信息？(y/n)")
-        if answer == "y" or answer == "":
-            username = lib.read_xml("account/username", "data/")
-            password = lib.read_xml("account/password", "data/")
-            uid = lib.read_xml("account/uid", "data/")
-
-        else:
+        if answer != "y" and answer != "":
             username = input("请输入用户名：")
             password = input("请输入密码：")
             uid = input("请输入用户ID：")
 
-    else:
-        username = lib.read_xml("account/username", "data/")
-        password = lib.read_xml("account/password", "data/")
-        uid = lib.read_xml("account/uid", "data/")
 
     logger.info("正在启动客户端...")
-    db.connect(lib.read_xml("database/file", "data/"))
+
     contacts = []
 
     main_receive_thread = threading.Thread(target=net.receive_packet, daemon=True)
@@ -304,31 +359,40 @@ def main():
     login_ui_class.validate_login_handler = lambda username_var, password_var: validate_login(username_var, password_var)
     login_ui_class.show_register = lambda : start_register()
     login_ui_class.create_register()
-    if is_debug():
-        if answer == "y" or answer == "":
-            login_ui_class.username_entry.delete('0', tk.END)
-            login_ui_class.username_entry.insert(string=username, index=0)
-            login_ui_class.password_entry.delete('0', tk.END)
-            login_ui_class.password_entry.insert(string=password, index=0)
-    else:
-        login_ui_class.username_entry.delete('0', tk.END)
-        login_ui_class.username_entry.insert(string=username, index=0)
-        login_ui_class.password_entry.delete('0', tk.END)
-        login_ui_class.password_entry.insert(string=password, index=0)
+
+    login_ui_class.username_entry.delete('0', tk.END)
+    login_ui_class.username_entry.insert(string=username, index=0)
+    login_ui_class.password_entry.delete('0', tk.END)
+    login_ui_class.password_entry.insert(string=password, index=0)
+
     login_root.mainloop()
+
+    db.connect(lib.read_xml("database/file", "data/"))
+    db.create_tables_if_not_exists()
+    check_database_uid()
 
     if not logged_in:
         logger.critical("登录失败")
         return
 
-    for contact in db.select_sql("contact", "mem, id"):
+    if not db.get_metadata("uid"):
+        db.insert_sql("meta", "uid" ,[uid])
+
+    for contact in db.select_sql("contact", "mem, id, name"):
         if contact:
             last_message = db.get_last_chat_message(uid, contact[1])
             if last_message:
-                contacts.append({"name": contact[0], "id":contact[1] ,"avatar": "👨", "last_msg": f"{last_message[0][4]}" + " " * (50-len(last_message[0][4])), "time": time.strftime("%H:%M", time.localtime(last_message[0][5]))})
+                if contact[0]:
+                    contacts.append({"name": contact[0], "id":contact[1] ,"avatar": "👨", "last_msg": f"{last_message[0][4]}" + " " * (50-len(last_message[0][4])), "time": time.strftime("%H:%M", time.localtime(last_message[0][5]))})
+                else:
+                    if contact[2]:
+                        contacts.append({"name": contact[2], "id": contact[1],"avatar": "👨", "last_msg": f"{last_message[0][4]}" + " " * (50-len(last_message[0][4])), "time": time.strftime("%H:%M", time.localtime(last_message[0][5]))})
+                    else:
+                        contacts.append({"name": "未知", "id": contact[1],"avatar": "👨", "last_msg": f"{last_message[0][4]}" + " " * (50-len(last_message[0][4])), "time": time.strftime("%H:%M", time.localtime(last_message[0][5]))})
     root = tk.Tk()
     gui = GUI(root, load_messages)
     gui.send_message_handler = lambda contact_: send_message(gui, contact_)
+    gui.set_add_friend_handler(handle_add_friend)
     gui.contacts = contacts
 
 
@@ -350,7 +414,19 @@ def main():
     # threading.Thread(target=root.mainloop, daemon=True).start()
     root.mainloop()
 
-
+def exit_program(status=0):
+    if login_root is not NotImplemented:
+        login_root.destroy()
+    if register_root is not NotImplemented:
+        register_root.destroy()
+    if root is not NotImplemented:
+        root.destroy()
+    if db.conn is not None:
+        db.close()
+    if net is not NotImplemented:
+        net.sock.shutdown(socket.SHUT_RD)
+        net.sock.close()
+    sys.exit(status)
 
 
 if __name__ == "__main__":
@@ -379,11 +455,4 @@ if __name__ == "__main__":
         logger.warning("服务器已断开连接")
     except KeyboardInterrupt:
         logger.info("正在退出...")
-        if root is not NotImplemented:
-            root.destroy()
-        if db.conn is not None:
-            db.close()
-        if net is not NotImplemented:
-            net.sock.shutdown(socket.SHUT_RD)
-            net.sock.close()
-        sys.exit(0)
+        exit_program()

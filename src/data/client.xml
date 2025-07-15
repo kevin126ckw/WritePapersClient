@@ -8,11 +8,11 @@
     <file>data/client.sqlite</file>
   </database>
   <account>
-    <username>332211</username>
-    <password>332211</password>
-    <uid>21</uid>
+    <username>admin</username>
+    <password>admin</password>
+    <uid>0</uid>
   </account>
   <debug>
-    <enabled>false</enabled>
+    <enabled>true</enabled>
   </debug>
 </data>
