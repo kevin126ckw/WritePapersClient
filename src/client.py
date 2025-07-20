@@ -112,47 +112,48 @@ def process_message(net_module):
             else:
                 logger.info("登录失败")
         """
-        if msg['type'] == 'send_message_result':
-            if msg['payload']['success']:
-                logger.info("发送成功")
-            else:
-                logger.info("发送失败")
-        elif msg['type'] == 'register_result':
-            if msg['payload']['success']:
-                logger.info("注册成功")
-                lib.write_xml("account/username", msg['payload']['username'])
-                lib.write_xml("account/password", msg['payload']['password'])
-                lib.write_xml("account/uid", msg['payload']['uid'])
-                logger.debug(f"写入配置文件,username:{msg['payload']['username']}, password:{msg['payload']['password']}, uid:{msg['payload']['uid']}")
-                messagebox.showinfo("注册成功", f"恭喜您，注册成功！您的UID是{msg['payload']['uid']}\n请手动重新启动应用程序登录！")
-                # login(msg['payload']['username'], msg['payload']['password'])
-                # time.sleep(0.3)
-                register_class.root.after(3, register_class.root.destroy())
-            else:
-                logger.error("注册失败")
-                messagebox.showerror("注册失败", "注册失败，请检查用户名是否已存在")
-        elif msg['type'] == "login_result":
-            if msg['payload']['success']:
-                logger.info("登录成功")
-                msg_uid = msg['payload']['uid']
-                logged_in = True
-                #login_ui_class.need_destroy = True
-                login_ui_class.root.after(0, lambda: login_ui_class.login_success())
-                logger.debug("窗口销毁")
-            else:
-                logger.error("登录失败")
-                logged_in = False
-                tk.messagebox.showerror("错误", "登录失败")
-                # logger.debug("窗口销毁")
-        elif msg['type'] == "add_friend_result":
-            if msg['payload']['success']:
-                logger.info("添加好友成功")
-                db.save_contact(msg['payload']['friend_uid'],msg['payload']['friend_username'],msg['payload']['friend_name'], "")
-                messagebox.showinfo("添加好友成功", "添加好友成功")
-                gui.root.after(0, lambda: update_contacts())
-            else:
-                logger.error("添加好友失败")
-                messagebox.showerror("添加好友失败", "添加好友失败")
+        match msg['type']:
+            case 'send_message_result':
+                if msg['payload']['success']:
+                    logger.info("发送成功")
+                else:
+                    logger.info("发送失败")
+            case 'register_result':
+                if msg['payload']['success']:
+                    logger.info("注册成功")
+                    lib.write_xml("account/username", msg['payload']['username'])
+                    lib.write_xml("account/password", msg['payload']['password'])
+                    lib.write_xml("account/uid", msg['payload']['uid'])
+                    logger.debug(f"写入配置文件,username:{msg['payload']['username']}, password:{msg['payload']['password']}, uid:{msg['payload']['uid']}")
+                    messagebox.showinfo("注册成功", f"恭喜您，注册成功！您的UID是{msg['payload']['uid']}\n请手动重新启动应用程序登录！")
+                    # login(msg['payload']['username'], msg['payload']['password'])
+                    # time.sleep(0.3)
+                    register_class.root.after(3, register_class.root.destroy())
+                else:
+                    logger.error("注册失败")
+                    messagebox.showerror("注册失败", "注册失败，请检查用户名是否已存在")
+            case "login_result":
+                if msg['payload']['success']:
+                    logger.info("登录成功")
+                    msg_uid = msg['payload']['uid']
+                    logged_in = True
+                    #login_ui_class.need_destroy = True
+                    login_ui_class.root.after(0, lambda: login_ui_class.login_success())
+                    logger.debug("窗口销毁")
+                else:
+                    logger.error("登录失败")
+                    logged_in = False
+                    tk.messagebox.showerror("错误", "登录失败")
+                    # logger.debug("窗口销毁")
+            case "add_friend_result":
+                if msg['payload']['success']:
+                    logger.info("添加好友成功")
+                    db.save_contact(msg['payload']['friend_uid'],msg['payload']['friend_username'],msg['payload']['friend_name'], "")
+                    messagebox.showinfo("添加好友成功", "添加好友成功")
+                    gui.root.after(0, lambda: update_contacts())
+                else:
+                    logger.error("添加好友失败")
+                    messagebox.showerror("添加好友失败", "添加好友失败")
 
 
     # 未完待续
