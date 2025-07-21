@@ -81,6 +81,7 @@ class ClientNetwork:
         self.message_queue = queue.Queue()
         self.return_queue = queue.Queue()
         self.offline_message_queue = queue.Queue()
+        self.friend_token_queue = queue.Queue()
 
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -170,6 +171,8 @@ class ClientNetwork:
 
                 elif msg["type"].endswith("result") or msg["type"].endswith("return"):
                     # 某些函数需要的返回值
+                    if msg["type"] == "friend_token_result":
+                        self.friend_token_queue.put(msg)
                     self.return_queue.put(msg)
                 elif msg["type"] == "server_hello":
                     # Hello

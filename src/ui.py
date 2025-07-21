@@ -8,6 +8,7 @@ from tkinter import ttk, messagebox
 
 class GUI:
     def __init__(self, root, load_messages):
+        self.show_settings = None
         self.user_frame = None
         self.username_label = None
         self.text_input = None
@@ -645,8 +646,3 @@ class GUI:
     @staticmethod
     def show_contacts():
         messagebox.showinfo("功能", "联系人管理功能")
-
-    @staticmethod
-    def show_settings():
-        # messagebox.showinfo("功能", "设置功能")
-        pass

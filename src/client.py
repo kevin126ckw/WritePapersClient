@@ -7,6 +7,7 @@
 # @Author  : Kevin Chang
 # import json
 # import queue
+import _tkinter
 import datetime
 import socket
 import sys
@@ -28,6 +29,7 @@ import paperlib as lib
 from ui import GUI
 from login_ui import LoginUI
 from reg_ui import RegisterUI
+from settings_ui import SettingsDialog
 
 uid = NotImplemented
 username = NotImplemented
@@ -48,6 +50,20 @@ net = networking.ClientNetwork()
 net.is_debug = lambda : is_debug()
 db = database.Database()
 
+server_ip = lib.read_xml("server/ip")
+server_port = lib.read_xml("server/port")
+if not server_ip:
+    logger.warning("未配置服务器地址，尝试本地服务器")
+    server_ip = "127.0.0.1"
+if not server_port:
+    logger.warning("未配置服务器端口，尝试默认端口")
+    server_port = "3624"
+
+settings_config = [
+    {"name": "server", "label": "服务器地址", "type": "text", "default": server_ip},
+    {"name": "port", "label": "端口号", "type": "text", "default": server_port},
+    {"name": "friend_token", "label": "好友口令", "type": "text", "default": "12345678"}
+    ]
 
 def is_debug():
     #return True
@@ -259,11 +275,11 @@ def update_contacts():
     gui.load_contacts()
 
 def register_user_handler(window_class):
-    print("注册用户")
+    logger.debug("注册用户")
     register_username = window_class.username_entry.get()
     register_password = window_class.password_entry.get()
-    print(f"用户名:{register_username}, 密码:{password}")
-    print(window_class.agree_terms_var.get())
+    logger.debug(f"用户名:{register_username}, 密码:{password}")
+    logger.debug(window_class.agree_terms_var.get())
     # 注册用户
     if not window_class.validate_all_fields():
         return
@@ -281,7 +297,7 @@ def register_user_handler(window_class):
     net.send_packet("register_account", {"username": register_username, "password": register_password})
 def start_register():
     global register_root,register_class, login_ui_class
-    print("开始注册")
+    logger.debug("开始注册")
     login_ui_class.root.after(0, lambda: login_ui_class.root.destroy())
     register_root = tk.Tk()
     register_class = RegisterUI(register_root)
@@ -289,7 +305,7 @@ def start_register():
     register_class.create_action_buttons(register_class.scrollable_frame)
     register_class.setup_bindings()
     register_root.mainloop()
-    print("注册界面创建完毕")
+    logger.debug("注册界面创建完毕")
 def handle_add_friend(friend_id, verify_token):
     try:
         friend_uid = int(friend_id)
@@ -317,6 +333,35 @@ def check_database_uid():
                                       f"数据库中保存的UID与当前登录的UID不一致，这可能不是你的数据库！\n数据库中的UID为{db.get_metadata('uid')}\n您登录的UID为{msg_uid}\n即将退出程序！")
             exit_program()
             return
+def open_settings():
+    """打开设置对话框的示例函数"""
+    for config in settings_config:
+        if config["name"] == "friend_token":
+            # 获取好友口令
+            net.send_packet("get_friend_token", {})
+            while net.friend_token_queue.empty():
+                time.sleep(0.01)
+
+            friend_token_msg = net.friend_token_queue.get_nowait()
+
+            friend_token = friend_token_msg["payload"]["friend_token"]
+            settings_config[settings_config.index(config)]['default'] = friend_token
+    cancel_flag : bool = False
+    dialog = SettingsDialog(root, settings_config, cancel_flag)
+    root.wait_window(dialog)  # 等待对话框关闭
+    logger.debug("最终设置:" + str(dialog.get_settings()))
+    if dialog.cancel_flag:
+        logger.debug("取消设置")
+        return
+    for key, value in dialog.get_settings().items():
+        logger.debug(f"{key}: {value}")
+        match key:
+            case "server":
+                lib.write_xml("server/ip", value)
+            case "port":
+                lib.write_xml("server/port", value)
+            case "friend_token":
+                net.send_packet("change_friend_token", {"new_friend_token": value})
 def main():
     """
     测试客户端
@@ -395,6 +440,7 @@ def main():
     gui.send_message_handler = lambda contact_: send_message(gui, contact_)
     gui.set_add_friend_handler(handle_add_friend)
     gui.contacts = contacts
+    gui.show_settings = lambda : open_settings()
 
 
     # 登录
@@ -416,12 +462,15 @@ def main():
     root.mainloop()
 
 def exit_program(status=0):
-    if login_root is not NotImplemented:
-        login_root.destroy()
-    if register_root is not NotImplemented:
-        register_root.destroy()
-    if root is not NotImplemented:
-        root.destroy()
+    try:
+        if login_root is not NotImplemented:
+            login_root.destroy()
+        if register_root is not NotImplemented:
+            register_root.destroy()
+        if root is not NotImplemented:
+            root.destroy()
+    except _tkinter.TclError:
+        pass
     if db.conn is not None:
         db.close()
     if net is not NotImplemented:
