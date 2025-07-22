@@ -35,7 +35,7 @@ class RegisterUI:
         # self.setup_bindings()
 
     def setup_window(self):
-        self.root.title("现代IM - 用户注册")
+        self.root.title("WritePapers - 用户注册")
         self.root.geometry("1000x700")
         self.root.resizable(False, False)
         self.root.configure(bg='#f5f5f5')
@@ -103,7 +103,7 @@ class RegisterUI:
         welcome_label.pack(pady=(50, 10))
 
         # 应用名称
-        app_name_label = tk.Label(deco_frame, text="现代IM", font=self.fonts['title'],
+        app_name_label = tk.Label(deco_frame, text="WritePapers", font=self.fonts['title'],
                                   bg=self.colors['primary'], fg='white')
         app_name_label.pack(pady=(0, 20))
 

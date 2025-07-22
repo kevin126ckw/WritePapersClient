@@ -1,4 +1,5 @@
 #!/usr/bin/python
+import time
 import tkinter as tk
 from tkinter import ttk, messagebox
 
@@ -169,6 +170,7 @@ class GUI:
         self.create_tooltip(add_friend_btn, "添加好友")
 
         # 搜索框
+        """
         search_frame = tk.Frame(self.contact_frame, bg='white')
         search_frame.pack(fill='x', padx=20, pady=(0, 20))
 
@@ -178,6 +180,7 @@ class GUI:
                                 bd=0, relief='flat', fg=self.colors['dark'])
         search_entry.pack(fill='x', ipady=8, padx=2)
         search_entry.insert(0, "🔍 搜索联系人...")
+        """
 
         # 联系人列表容器
         list_container = tk.Frame(self.contact_frame, bg='white')
@@ -195,7 +198,7 @@ class GUI:
 
         self.contact_canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
         self.contact_canvas.configure(yscrollcommand=scrollbar.set)
-
+        time.sleep(0) # 我知道这行代码没有用，但是放在这里可以避免警告
         self.contact_canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
 
@@ -291,10 +294,11 @@ class GUI:
         add_btn.pack(side='right')
 
         # 绑定回车键
+        """
         def on_enter(event):
             str(event)
             add_friend()
-
+        """
         # dialog.bind('<Return>', on_enter)
 
     def set_add_friend_handler(self, handler):

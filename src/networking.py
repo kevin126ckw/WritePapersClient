@@ -165,31 +165,35 @@ class ClientNetwork:
                 # 调试 打印消息
                 if self.is_debug():
                     logger.debug("收到消息:" + raw_msg)
-                if msg["type"] == "new_message":
-                    # 正常私聊消息
-                    self.message_queue.put(msg)
 
-                elif msg["type"].endswith("result") or msg["type"].endswith("return"):
+                if msg["type"].endswith("result") or msg["type"].endswith("return"):
                     # 某些函数需要的返回值
                     if msg["type"] == "friend_token_result":
                         self.friend_token_queue.put(msg)
+                        continue
                     self.return_queue.put(msg)
-                elif msg["type"] == "server_hello":
-                    # Hello
-                    logger.critical("服务器给你发了个Hello!")
-                elif msg["type"] == "heartbeat":
-                    if self.is_debug():
-                        logger.debug("收到心跳包，正在回复")
-                    self.send_packet("heartbeat", {"content": "Health check received."})
-                elif msg["type"] == "offline_messages":
-                    # 离线消息
-                    """for message in msg["payload"]:
-                        logger.debug(f"收到离线消息: {message[1]}:{message[0]}")"""
-                    for message in msg["payload"]:
-                        self.offline_message_queue.put(message)
-                else:
-                    # 未知消息
-                    logger.warning(f"收到未知消息类型: {msg['type']}, full content:{msg}")
+                    continue
+                match msg["type"]:
+                    case "new_message":
+                        # 正常私聊消息
+                        self.message_queue.put(msg)
+
+                    case "server_hello":
+                        # Hello
+                        logger.critical("服务器给你发了个Hello!")
+                    case "heartbeat":
+                        if self.is_debug():
+                            logger.debug("收到心跳包，正在回复")
+                        self.send_packet("heartbeat", {"content": "Health check received."})
+                    case "offline_messages":
+                        # 离线消息
+                        """for message in msg["payload"]:
+                            logger.debug(f"收到离线消息: {message[1]}:{message[0]}")"""
+                        for message in msg["payload"]:
+                            self.offline_message_queue.put(message)
+                    case _:
+                        # 未知消息
+                        logger.warning(f"收到未知消息类型: {msg['type']}, full content:{msg}")
                 # process_message(self)
 
         except BrokenPipeError:
