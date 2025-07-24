@@ -167,7 +167,7 @@ class Database:
             :return list: 最近一条聊天消息
         """
         condition = f"(from_user={user_id} AND to_user={contact_id}) OR (from_user={contact_id} AND to_user={user_id})"
-        return self.select_sql("chat_history", "*", f"{condition} ORDER BY send_time DESC LIMIT 1")
+        return self.select_sql("chat_history", "*", f"{condition} ORDER BY send_time DESC LIMIT 1")[0]
     def get_metadata(self, column):
         """
         获取元数据

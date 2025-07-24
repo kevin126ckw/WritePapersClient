@@ -13,7 +13,10 @@ import socket
 import sys
 import threading
 import time
+import base64
 import tkinter as tk
+import tkinter.filedialog
+import os
 from tkinter import messagebox
 
 # import traceback
@@ -80,19 +83,24 @@ def _handle_chat_message(payload):
     global gui
     from_user = payload['from_user']
     send_time = payload['time']
+    message_type = payload['type']
     message_content = str(payload['message'])
-    db.save_chat_message(from_user, uid, message_content, send_time)
+    db.save_chat_message(from_user, uid, message_content, send_time, message_type)
     if gui.current_chat:
         if gui.current_chat['id'] == int(from_user):
             gui.display_message(
-                {"content":message_content, "time":time.strftime("%H:%M", time.localtime(send_time)), "type":"received", "sender":db.get_mem_by_uid(from_user)})
+                {"content":message_content, "time":time.strftime("%H:%M", time.localtime(send_time)), "status":"received", "sender":db.get_mem_by_uid(from_user), "type": message_type})
     if "need_update_contact" in payload:
         logger.debug("need_update_contact存在")
         if not payload['need_update_contact']:
             logger.debug("不需要更新联系人")
             return
-    logger.info(f"{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(send_time))} {db.get_mem_by_uid(from_user)}: {message_content}")
-    logger.debug(f"新消息payload:{payload}")
+    if message_type == "text":
+        logger.info(f"{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(send_time))} {db.get_mem_by_uid(from_user)}: {message_content}")
+    else:
+        logger.info(f"{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(send_time))} {db.get_mem_by_uid(from_user)}: [图片]")
+    if is_debug():
+        logger.debug(f"新消息payload:{payload}")
     update_contacts()
 
 def process_message(net_module):
@@ -205,14 +213,14 @@ def load_messages(contact, display_message):
         logger.debug(f"正在加载消息：{msg}")# (1, 0, 0, 'text', 'hi', 1745813243.4815726)
         if int(msg[1]) == int(uid):
             display_message(
-                {"content":msg[4], "time":time.strftime("%H:%M", time.localtime(msg[5])), "type":"sent", "sender":"我"})
+                {"content":msg[4], "time":time.strftime("%H:%M", time.localtime(msg[5])), "status":"sent", "sender":"我", 'type': msg[3]})
         elif int(msg[2]) == int(uid):
             display_message(
-                {"content":msg[4], "time":time.strftime("%H:%M", time.localtime(msg[5])), "type":"received", "sender":db.get_mem_by_uid(msg[1])})
+                {"content":msg[4], "time":time.strftime("%H:%M", time.localtime(msg[5])), "status":"received", "sender":db.get_mem_by_uid(msg[1]), 'type': msg[3]})
         else:
             logger.error("未知消息")
             display_message(
-                {"content": msg[4], "time": time.strftime("%H:%M", time.localtime(msg[5])), "type": "sent"})
+                {"content": msg[4], "time": time.strftime("%H:%M", time.localtime(msg[5])), "status": "sent", 'type': msg[3]})
 
 def send_message(gui_class, contact):
     """
@@ -229,10 +237,10 @@ def send_message(gui_class, contact):
 
     current_time = datetime.datetime.now().strftime("%H:%M")
 
-    message = {"content":content, "time":current_time, "type":"sent", "sender":"我"}
+    message = {"content":content, "time":current_time, "status":"sent", "sender":"我", 'type': "text"}
 
     # 添加到消息记录
-    net.send_packet("send_message", {"to_user": str(contact["id"]), "message": content})
+    net.send_packet("send_message", {"to_user": str(contact["id"]), "message": content, "type": "text"})
     db.save_chat_message(uid, contact["id"], content, time.time())
 
     # 显示消息
@@ -242,7 +250,32 @@ def send_message(gui_class, contact):
     gui_class.text_input.delete("1.0", tk.END)
 
     update_contacts()
+def send_picture(gui_class, contact):
+    current_time = datetime.datetime.now().strftime("%H:%M")
+    image_path = tkinter.filedialog.askopenfilename()
+    if image_path:
+        if os.path.getsize(image_path) > 1024 * 1024 * 2:
+            tk.messagebox.showerror("错误", "图片大小不能超过2MB")
+            return
+        with open(image_path,'rb') as image_file:
+            image_data = image_file.read()
+            image_file.close()
+        if not image_data:
+            tk.messagebox.showerror("错误", "请选择带有内容的图片")
+            return
+        message = {"content": image_data, "time": current_time, "status": "sent", "sender": "我", 'type': "image"}
+        def _send_picture():
+            # 添加到消息记录
+            print("正在发送图片数据")
+            net.send_packet("send_message", {"to_user": str(contact["id"]), "type": "image", "message": base64.b64encode(image_data).decode("utf-8")}) # image_data不加str会TypeError: Object of type bytes is not JSON serializable
+            print("图片数据发送完成")
+            db.save_chat_message(uid, contact["id"], image_data, time.time(), "image")
 
+            # 显示消息
+            gui_class.display_message(message)
+
+            update_contacts()
+        threading.Thread(target=_send_picture).start()
 def process_message_thread():
     while True:
         if not net.message_queue.empty() or not net.return_queue.empty() or not net.offline_message_queue.empty():
@@ -260,17 +293,32 @@ def update_contacts():
     contacts = []
     for contact in db.select_sql("contact", "mem, id, name"):
         last_message = db.get_last_chat_message(uid, contact[1])
+        logger.debug(f"正在更新联系人：{contact},last_message:{last_message}")
         if contact[0]:
-            contacts.append({"name": contact[0], "id": contact[1], "avatar": "👨", "last_msg": last_message[0][4],
-                             "time": time.strftime("%H:%M", time.localtime(last_message[0][5]))})
+            if last_message[3] == "text":
+                contacts.append({"name": contact[0], "id": contact[1], "avatar": "👨", "last_msg": last_message[4],
+                                 "time": time.strftime("%H:%M", time.localtime(last_message[5]))})
+            elif last_message[3] == "image":
+                contacts.append({"name": contact[0], "id": contact[1], "avatar": "👨", "last_msg": "[图片]",
+                                 "time": time.strftime("%H:%M", time.localtime(last_message[5]))})
         else:
             if contact[2]:
-                contacts.append({"name": contact[2], "id": contact[1], "avatar": "👨", "last_msg": last_message[0][4],
-                                 "time": time.strftime("%H:%M", time.localtime(last_message[0][5]))})
+                if last_message[3] == "text":
+                    contacts.append({"name": contact[2], "id": contact[1], "avatar": "👨", "last_msg": last_message[4],
+                                     "time": time.strftime("%H:%M", time.localtime(last_message[5]))})
+                elif last_message[3] == "image":
+                    contacts.append(
+                        {"name": contact[2], "id": contact[1], "avatar": "👨", "last_msg": "[图片]",
+                         "time": time.strftime("%H:%M", time.localtime(last_message[5]))})
             else:
-                contacts.append({"name": "未知", "id": contact[1], "avatar": "👨", "last_msg": last_message[0][4],
-                                 "time": time.localtime(last_message[0][5])
-                })
+                if last_message[3] == "text":
+                    contacts.append({"name": "未知", "id": contact[1], "avatar": "👨", "last_msg": last_message[4],
+                                     "time": time.localtime(last_message[5])
+                    })
+                elif last_message[3] == "image":
+                    contacts.append(
+                        {"name": "未知", "id": contact[1], "avatar": "👨", "last_msg": "[图片]",
+                         "time": time.strftime("%H:%M", time.localtime(last_message[5]))})
     gui.contacts = contacts
     gui.load_contacts()
 
@@ -341,10 +389,9 @@ def open_settings():
             net.send_packet("get_friend_token", {})
             while net.friend_token_queue.empty():
                 time.sleep(0.01)
-
             friend_token_msg = net.friend_token_queue.get_nowait()
-
             friend_token = friend_token_msg["payload"]["friend_token"]
+            # 获取到好友口令之后
             settings_config[settings_config.index(config)]['default'] = friend_token
     cancel_flag : bool = False
     dialog = SettingsDialog(root, settings_config, cancel_flag)
@@ -429,15 +476,16 @@ def main():
             last_message = db.get_last_chat_message(uid, contact[1])
             if last_message:
                 if contact[0]:
-                    contacts.append({"name": contact[0], "id":contact[1] ,"avatar": "👨", "last_msg": f"{last_message[0][4]}" + " " * (50-len(last_message[0][4])), "time": time.strftime("%H:%M", time.localtime(last_message[0][5]))})
+                    contacts.append({"name": contact[0], "id":contact[1] ,"avatar": "👨", "last_msg": f"{last_message[4]}" + " " * (50-len(last_message[4])), "time": time.strftime("%H:%M", time.localtime(last_message[5]))})
                 else:
                     if contact[2]:
-                        contacts.append({"name": contact[2], "id": contact[1],"avatar": "👨", "last_msg": f"{last_message[0][4]}" + " " * (50-len(last_message[0][4])), "time": time.strftime("%H:%M", time.localtime(last_message[0][5]))})
+                        contacts.append({"name": contact[2], "id": contact[1],"avatar": "👨", "last_msg": f"{last_message[4]}" + " " * (50-len(last_message[4])), "time": time.strftime("%H:%M", time.localtime(last_message[5]))})
                     else:
-                        contacts.append({"name": "未知", "id": contact[1],"avatar": "👨", "last_msg": f"{last_message[0][4]}" + " " * (50-len(last_message[0][4])), "time": time.strftime("%H:%M", time.localtime(last_message[0][5]))})
+                        contacts.append({"name": "未知", "id": contact[1],"avatar": "👨", "last_msg": f"{last_message[4]}" + " " * (50-len(last_message[4])), "time": time.strftime("%H:%M", time.localtime(last_message[5]))})
     root = tk.Tk()
     gui = GUI(root, load_messages)
     gui.send_message_handler = lambda contact_: send_message(gui, contact_)
+    gui.send_picture_handler = lambda contact_: send_picture(gui, contact_)
     gui.set_add_friend_handler(handle_add_friend)
     gui.contacts = contacts
     gui.show_settings = lambda : open_settings()

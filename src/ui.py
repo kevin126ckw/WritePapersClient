@@ -9,6 +9,7 @@ from tkinter import ttk, messagebox
 
 class GUI:
     def __init__(self, root, load_messages):
+        self.send_picture_handler = None
         self.show_settings = None
         self.user_frame = None
         self.username_label = None
@@ -373,14 +374,14 @@ class GUI:
         msg_scrollbar = ttk.Scrollbar(msg_container, orient='vertical', command=self.msg_canvas.yview)
         self.msg_frame = tk.Frame(self.msg_canvas, bg=self.colors['secondary'])
 
-        # 关键修改：绑定 msg_frame 的配置变化事件
+        # 绑定 msg_frame 的配置变化事件
         def configure_msg_frame(event):
             str(event)
             self.msg_canvas.configure(scrollregion=self.msg_canvas.bbox("all"))
 
         self.msg_frame.bind("<Configure>", configure_msg_frame)
 
-        # 关键修改：绑定 canvas 的配置变化事件，调整 frame 宽度
+        # 绑定 canvas 的配置变化事件，调整 frame 宽度
         def configure_canvas(event):
             canvas_width = event.width
             self.msg_canvas.itemconfig(self.msg_canvas.find_all()[0], width=canvas_width)
@@ -404,11 +405,14 @@ class GUI:
         toolbar.pack(fill='x', pady=(0, 10))
         toolbar.pack_propagate(False)
 
-        tools = []
+        # tools = ["😊", "📎", "🖼️", "📹"]
+        tools = [{"text":"🖼️","command":lambda :self.send_picture_handler(contact)}]
         for tool in tools:
-            btn = tk.Button(toolbar, text=tool, font=('Arial', 14), bg='white',
+            tool_text = tool['text']
+
+            btn = tk.Button(toolbar, text=tool_text, font=('Arial', 14), bg='white',
                             fg=self.colors['light'], bd=0, cursor='hand2',
-                            activebackground=self.colors['hover'], padx=8)
+                            activebackground=self.colors['hover'], padx=8, command=tool['command'])
             btn.pack(side='left', padx=2, pady=5)
 
         # 文本输入和发送区域
@@ -555,7 +559,7 @@ class GUI:
 
         msg_container.pack(fill='x', padx=20, pady=8)
 
-        if message['type'] == 'sent':
+        if message['status'] == 'sent':
             # 发送的消息（右对齐）
             msg_wrapper = tk.Frame(msg_container, bg=self.colors['secondary'])
             msg_wrapper.pack(anchor='e')
@@ -563,9 +567,23 @@ class GUI:
             msg_bubble = tk.Frame(msg_wrapper, bg=self.colors['primary'], padx=15, pady=10)
             msg_bubble.pack(side='right', anchor='e')
 
-            msg_label = tk.Label(msg_bubble, text=message['content'], font=self.fonts['default'],
-                                 bg=self.colors['primary'], fg='white', wraplength=3000, justify='left')
-            msg_label.pack()
+            match message['type']:
+                case 'text':
+                    msg_label = tk.Label(msg_bubble, text=message['content'], font=self.fonts['default'],
+                                         bg=self.colors['primary'], fg='white', wraplength=3000, justify='left')
+                    msg_label.pack()
+                case 'image':
+                    try:
+                        print(f"image")
+                        # with open("data/cache/temp.png", 'wb') as f:
+                        #     f.write(message['content'])
+                        # image = tk.PhotoImage(file="data/cache/temp.png")
+                        image = tk.PhotoImage(data=message['content'])
+                        image_label = tk.Label(msg_bubble, image=image)
+                        image_label.image = image
+                        image_label.pack()
+                    except Exception as e:
+                        print(e)
 
             time_label = tk.Label(msg_wrapper, text=message['time'], font=self.fonts['small'],
                                   bg=self.colors['secondary'], fg=self.colors['light'])
