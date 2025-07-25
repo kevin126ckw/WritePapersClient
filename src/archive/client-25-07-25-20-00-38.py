@@ -91,14 +91,9 @@ class Client:
         self.db.save_chat_message(from_user, self.uid, message_content, send_time, message_type)
         if self.gui.current_chat:
             if self.gui.current_chat['id'] == int(from_user):
-                if message_type == "text":
-                    self.gui.display_message(
-                        {"content": message_content, "time": time.strftime("%H:%M", time.localtime(send_time)),
-                         "status": "received", "sender": self.db.get_mem_by_uid(from_user), "type": message_type})
-                elif message_type == "image":
-                    self.gui.display_message(
-                        {"content": base64.b64decode(message_content), "time": time.strftime("%H:%M", time.localtime(send_time)),
-                         "status": "received", "sender": self.db.get_mem_by_uid(from_user), "type": message_type})
+                self.gui.display_message(
+                    {"content": message_content, "time": time.strftime("%H:%M", time.localtime(send_time)),
+                     "status": "received", "sender": self.db.get_mem_by_uid(from_user), "type": message_type})
         if "need_update_contact" in payload:
             self.logger.debug("need_update_contact存在")
             if not payload['need_update_contact']:
@@ -225,10 +220,7 @@ class Client:
             messages = self.db.select_sql("chat_history", "*", f"to_user={contact['id']} or from_user={contact['id']}")
 
         for msg in messages:
-            if len(str(msg)) < 250:
-                self.logger.debug(f"正在加载消息：{msg}")  # (1, 0, 0, 'text', 'hi', 1745813243.4815726)
-            else:
-                self.logger.debug(f"正在加载消息（太长了，我懒，只显示长度）:{len(str(msg))}）")
+            self.logger.debug(f"正在加载消息：{msg}")  # (1, 0, 0, 'text', 'hi', 1745813243.4815726)
             if int(msg[1]) == int(self.uid):
                 display_message(
                     {"content": msg[4], "time": time.strftime("%H:%M", time.localtime(msg[5])), "status": "sent",
@@ -280,7 +272,7 @@ class Client:
 
     def send_picture(self, gui_class, contact):
         current_time = datetime.datetime.now().strftime("%H:%M")
-        image_path = tkinter.filedialog.askopenfilename(filetypes=[("PNG Files", "*.png"), ("GIF Files", "*.gif")])
+        image_path = tkinter.filedialog.askopenfilename(filetypes=[("Image Files", "*.png;*.gif")])
         if image_path:
             if os.path.getsize(image_path) > 1024 * 1024 * 2:
                 tk.messagebox.showerror("错误", "图片大小不能超过2MB")
@@ -296,12 +288,10 @@ class Client:
             def _send_picture():
                 # 添加到消息记录
                 self.logger.debug("正在发送图片数据")
-                self.gui.show_toast("正在发送图片数据，请稍候...")
                 self.net.send_packet("send_message", {"to_user": str(contact["id"]), "type": "image",
                                                       "message": base64.b64encode(image_data).decode(
                                                           "utf-8")})  # Base64编码图片数据
                 self.logger.debug("图片数据发送完成")
-                self.gui.show_toast("图片发送成功")
                 self.db.save_chat_message(self.uid, contact["id"], image_data, time.time(), "image")
 
                 # 显示消息
@@ -475,6 +465,7 @@ class Client:
                 self.uid = input("请输入用户ID：")
 
         self.logger.info("正在启动客户端...")
+
         contacts = []
 
         main_receive_thread = threading.Thread(target=self.net.receive_packet, daemon=True)
@@ -498,12 +489,11 @@ class Client:
 
         self.db.connect(lib.read_xml("database/file", "data/"))
         self.db.create_tables_if_not_exists()
+        self.check_database_uid()
 
         if not self.logged_in:
             self.logger.critical("登录失败")
             return
-
-        self.check_database_uid()
 
         if not self.db.get_metadata("uid"):
             self.db.insert_sql("meta", "uid", [self.uid])
@@ -513,36 +503,20 @@ class Client:
                 last_message = self.db.get_last_chat_message(self.uid, contact[1])
                 if last_message:
                     if contact[0]:
-                        if last_message[3] =="text":
-                            contacts.append({"name": contact[0], "id": contact[1], "avatar": "👨",
-                                             "last_msg": f"{last_message[4]}" + " " * (50 - len(last_message[4])),
-                                             "time": time.strftime("%H:%M", time.localtime(last_message[5]))})
-                        elif last_message[3] == "image":
-                            contacts.append({"name": contact[0], "id": contact[1], "avatar": "👨",
-                                             "last_msg": "[图片]" + " " * (50 - len("[图片]")),
-                                             "time": time.strftime("%H:%M", time.localtime(last_message[5]))})
+                        contacts.append({"name": contact[0], "id": contact[1], "avatar": "👨",
+                                         "last_msg": f"{last_message[4]}" + " " * (50 - len(last_message[4])),
+                                         "time": time.strftime("%H:%M", time.localtime(last_message[5]))})
                     else:
                         if contact[2]:
-                            if last_message[3] == "text":
-                                contacts.append({"name": contact[2], "id": contact[1], "avatar": "👨",
-                                                 "last_msg": f"{last_message[4]}" + " " * (50 - len(last_message[4])),
-                                                 "time": time.strftime("%H:%M", time.localtime(last_message[5]))})
-                            elif last_message[3] == "image":
-                                contacts.append({"name": contact[2], "id": contact[1], "avatar": "👨",
-                                                 "last_msg": "[图片]" + " " * (50 - len("[图片]")),
-                                                 "time": time.strftime("%H:%M", time.localtime(last_message[5]))})
+                            contacts.append({"name": contact[2], "id": contact[1], "avatar": "👨",
+                                             "last_msg": f"{last_message[4]}" + " " * (50 - len(last_message[4])),
+                                             "time": time.strftime("%H:%M", time.localtime(last_message[5]))})
                         else:
-                            if last_message[3] == "text":
-                                contacts.append({"name": "未知", "id": contact[1], "avatar": "👨",
-                                                 "last_msg": f"{last_message[4]}" + " " * (50 - len(last_message[4])),
-                                                 "time": time.strftime("%H:%M", time.localtime(last_message[5]))})
-                            elif last_message[3] == "image":
-                                contacts.append({"name": "未知", "id": contact[1], "avatar": "👨",
-                                                 "last_msg": "[图片]" + " " * (50 - len("[图片]")),
-                                                 "time": time.strftime("%H:%M", time.localtime(last_message[5]))})
+                            contacts.append({"name": "未知", "id": contact[1], "avatar": "👨",
+                                             "last_msg": f"{last_message[4]}" + " " * (50 - len(last_message[4])),
+                                             "time": time.strftime("%H:%M", time.localtime(last_message[5]))})
         self.root = tk.Tk()
         self.gui = GUI(self.root, self.load_messages)
-        self.gui.is_debug = lambda : self.is_debug()
         self.gui.send_message_handler = lambda contact_: self.send_message(self.gui, contact_)
         self.gui.send_picture_handler = lambda contact_: self.send_picture(self.gui, contact_)
         self.gui.set_add_friend_handler(self.handle_add_friend)

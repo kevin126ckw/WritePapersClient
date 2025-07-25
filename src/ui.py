@@ -1,6 +1,10 @@
 #!/usr/bin/python
 import time
 import tkinter as tk
+from io import BytesIO
+
+import toast_ui
+from PIL import Image, ImageTk, ImageSequence
 from tkinter import ttk, messagebox
 
 # from tkinter import font
@@ -9,6 +13,7 @@ from tkinter import ttk, messagebox
 
 class GUI:
     def __init__(self, root, load_messages):
+        self.is_debug = None
         self.send_picture_handler = None
         self.show_settings = None
         self.user_frame = None
@@ -31,6 +36,7 @@ class GUI:
         self.send_message_handler = None
         self.contacts = None
         self.root = root
+        self.toast = toast_ui.Toast(self.root)
 
         self.load_messages = load_messages
 
@@ -407,6 +413,8 @@ class GUI:
 
         # tools = ["😊", "📎", "🖼️", "📹"]
         tools = [{"text":"🖼️","command":lambda :self.send_picture_handler(contact)}]
+        if self.is_debug():
+            tools.append({"text": "toastTest", "command": lambda: self.show_toast("Test")})
         for tool in tools:
             tool_text = tool['text']
 
@@ -574,14 +582,44 @@ class GUI:
                     msg_label.pack()
                 case 'image':
                     try:
-                        print(f"image")
                         # with open("data/cache/temp.png", 'wb') as f:
                         #     f.write(message['content'])
                         # image = tk.PhotoImage(file="data/cache/temp.png")
-                        image = tk.PhotoImage(data=message['content'])
-                        image_label = tk.Label(msg_bubble, image=image)
-                        image_label.image = image
+                        # image = tk.PhotoImage(data=message['content'])
+                        image = Image.open(BytesIO(message['content']))
+                        # 获取图像的所有帧
+                        frames = []
+                        for frame in ImageSequence.Iterator(image):
+                            frames.append(ImageTk.PhotoImage(frame))
+                        if len(frames) >1 :
+                            # 动图
+                            image_label = tk.Label(msg_bubble, image=frames[0])
+                            image_label.image = image
+                        else:
+                            # 静态图
+                            image.thumbnail((300, 300))
+                            self.show_toast("图片已被压缩到300x300,暂未更新显示原图功能",toast_type="warning")
+                            tk_image = ImageTk.PhotoImage(image)
+                            image_label = tk.Label(msg_bubble)
+                            image_label.image = tk_image
                         image_label.pack()
+
+                        # 播放动画
+                        def update_frame(frame_index):
+                            # 更新标签的图像
+                            try:
+                                image_label.configure(image=frames[frame_index])
+                            except Exception as ex:
+                                str(ex)
+
+                            # 获取下一帧的索引
+                            next_frame_index = (frame_index + 1) % len(frames)
+
+                            # 在固定的时间间隔后调用更新函数
+                            self.root.after(100, update_frame, next_frame_index)
+
+                        # 开始动画
+                        update_frame(0)
                     except Exception as e:
                         print(e)
 
@@ -659,6 +697,21 @@ class GUI:
         # 快捷键绑定
         self.root.bind('<Control-Return>',
                        lambda e: self.send_message_handler(self.current_chat) if self.current_chat else None)
+
+    def show_toast(self, message, duration=3000, position='bottom-right', bg_color='#333333',
+             text_color='white', font=('Arial', 10), toast_type='info'):
+        """
+        显示一个 Toast 提示框
+
+        :param message: 要显示的消息
+        :param duration: 显示时长(毫秒)
+        :param position: 位置 ('top-left', 'top-right', 'bottom-left', 'bottom-right', 'center')
+        :param bg_color: 背景颜色
+        :param text_color: 文字颜色
+        :param font: 字体
+        :param toast_type: 类型 ('info', 'success', 'warning', 'error')
+        """
+        self.toast.show(message, duration, position, bg_color, text_color, font, toast_type)
 
     @staticmethod
     def show_chat():

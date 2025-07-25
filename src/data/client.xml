@@ -13,6 +13,6 @@
     <uid>0</uid>
   </account>
   <debug>
-    <enabled>true</enabled>
+    <enabled>false</enabled>
   </debug>
 </data>

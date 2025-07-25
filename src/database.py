@@ -181,24 +181,6 @@ class Database:
             return result[0][0] if result else None
         except Exception as e:
             logger.error(e, exc_info=True)
-    def run_sql_file(self, sql_file):
-        with open(sql_file, encoding='utf-8', mode='r') as f:
-            # 读取整个sql文件，以分号切割。[:-1]删除最后一个元素，也就是空字符串
-            sql_list = f.read().split(';')[:-1]
-            for x in sql_list:
-                # 判断包含空行的
-                if '\n' in x:
-                    # 替换空行为1个空格
-                    x = x.replace('\n', ' ')
-
-                # 判断多个空格时
-                if '    ' in x:
-                    # 替换为空
-                    x = x.replace('    ', '')
-
-                # sql语句添加分号结尾
-                sql_item = x + ';'
-                self.run_sql(sql_item)
     def create_tables_if_not_exists(self):
         sql_item1 = """
         create table if not exists chat_history

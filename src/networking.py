@@ -82,6 +82,7 @@ class ClientNetwork:
         self.return_queue = queue.Queue()
         self.offline_message_queue = queue.Queue()
         self.friend_token_queue = queue.Queue()
+        self.welcome_back_queue = queue.Queue()
 
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -191,6 +192,9 @@ class ClientNetwork:
                             logger.debug(f"收到离线消息: {message[1]}:{message[0]}")"""
                         for message in msg["payload"]:
                             self.offline_message_queue.put(message)
+                    case "welcome_back":
+                        # 上线
+                        self.welcome_back_queue.put(msg)
                     case _:
                         # 未知消息
                         logger.warning(f"收到未知消息类型: {msg['type']}, full content:{msg}")
