@@ -107,13 +107,17 @@ class Toast:
         self.toast_window.geometry(f'{window_width}x{window_height}+{x}+{y}')
         self.toast_window.deiconify()  # 显示窗口
 
-        # 添加圆角效果（通过设置窗口形状）
+        """
+        以下代码因为太丑了而被禁用了
+        # 添加透明效果（通过设置参数）
         try:
             # 这个功能在某些系统上可能不支持
-            self.toast_window.attributes('-transparentcolor', bg_color)
+            # self.toast_window.attributes('-transparentcolor', bg_color)
+            pass
         except Exception as e:
             print(e) # e
             pass
+        """
 
         # 淡入效果
         self._fade_in()
