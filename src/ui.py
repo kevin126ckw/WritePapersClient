@@ -564,9 +564,49 @@ class GUI:
     def display_message(self, message):
         msg_container = tk.Frame(self.msg_frame, bg=self.colors['secondary'])
         # msg_container = tk.Frame(self.msg_frame, bg="#030507")
-
         msg_container.pack(fill='x', padx=20, pady=8)
+        def show_image():
+            try:
+                # with open("data/cache/temp.png", 'wb') as f:
+                #     f.write(message['content'])
+                # image = tk.PhotoImage(file="data/cache/temp.png")
+                # image = tk.PhotoImage(data=message['content'])
+                image = Image.open(BytesIO(message['content']))
+                # 获取图像的所有帧
+                frames = []
+                for frame in ImageSequence.Iterator(image):
+                    frames.append(ImageTk.PhotoImage(frame))
+                if len(frames) > 1:
+                    # 动图
+                    image_label = tk.Label(msg_bubble, image=frames[0])
+                    image_label.image = image
+                else:
+                    # 静态图
+                    image.thumbnail((300, 300))
+                    self.show_toast("图片已被压缩到300x300,暂未更新显示原图功能", toast_type="warning")
+                    tk_image = ImageTk.PhotoImage(image)
+                    image_label = tk.Label(msg_bubble)
+                    image_label.image = tk_image
+                image_label.pack()
 
+                # 播放动画
+                def update_frame(frame_index):
+                    # 更新标签的图像
+                    try:
+                        image_label.configure(image=frames[frame_index])
+                    except Exception as ex:
+                        str(ex)
+
+                    # 获取下一帧的索引
+                    next_frame_index = (frame_index + 1) % len(frames)
+
+                    # 在固定的时间间隔后调用更新函数
+                    self.root.after(100, update_frame, next_frame_index)
+
+                # 开始动画
+                update_frame(0)
+            except Exception as e:
+                print(e)
         if message['status'] == 'sent':
             # 发送的消息（右对齐）
             msg_wrapper = tk.Frame(msg_container, bg=self.colors['secondary'])
@@ -581,47 +621,7 @@ class GUI:
                                          bg=self.colors['primary'], fg='white', wraplength=3000, justify='left')
                     msg_label.pack()
                 case 'image':
-                    try:
-                        # with open("data/cache/temp.png", 'wb') as f:
-                        #     f.write(message['content'])
-                        # image = tk.PhotoImage(file="data/cache/temp.png")
-                        # image = tk.PhotoImage(data=message['content'])
-                        image = Image.open(BytesIO(message['content']))
-                        # 获取图像的所有帧
-                        frames = []
-                        for frame in ImageSequence.Iterator(image):
-                            frames.append(ImageTk.PhotoImage(frame))
-                        if len(frames) >1 :
-                            # 动图
-                            image_label = tk.Label(msg_bubble, image=frames[0])
-                            image_label.image = image
-                        else:
-                            # 静态图
-                            image.thumbnail((300, 300))
-                            self.show_toast("图片已被压缩到300x300,暂未更新显示原图功能",toast_type="warning")
-                            tk_image = ImageTk.PhotoImage(image)
-                            image_label = tk.Label(msg_bubble)
-                            image_label.image = tk_image
-                        image_label.pack()
-
-                        # 播放动画
-                        def update_frame(frame_index):
-                            # 更新标签的图像
-                            try:
-                                image_label.configure(image=frames[frame_index])
-                            except Exception as ex:
-                                str(ex)
-
-                            # 获取下一帧的索引
-                            next_frame_index = (frame_index + 1) % len(frames)
-
-                            # 在固定的时间间隔后调用更新函数
-                            self.root.after(100, update_frame, next_frame_index)
-
-                        # 开始动画
-                        update_frame(0)
-                    except Exception as e:
-                        print(e)
+                    show_image()
 
             time_label = tk.Label(msg_wrapper, text=message['time'], font=self.fonts['small'],
                                   bg=self.colors['secondary'], fg=self.colors['light'])
@@ -634,10 +634,13 @@ class GUI:
 
             msg_bubble = tk.Frame(msg_wrapper, bg='white', padx=15, pady=10)
             msg_bubble.pack(side='left')
-
-            msg_label = tk.Label(msg_bubble, text=message['content'], font=self.fonts['default'],
-                                 bg='white', fg=self.colors['dark'], wraplength=3000, justify='left')
-            msg_label.pack()
+            match message['type']:
+                case 'text':
+                    msg_label = tk.Label(msg_bubble, text=message['content'], font=self.fonts['default'],
+                                         bg='white', fg=self.colors['dark'], wraplength=3000, justify='left')
+                    msg_label.pack()
+                case 'image':
+                    show_image()
 
             time_label = tk.Label(msg_wrapper, text=message['time'], font=self.fonts['small'],
                                   bg=self.colors['secondary'], fg=self.colors['light'])

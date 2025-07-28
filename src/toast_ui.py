@@ -52,7 +52,7 @@ class Toast:
         try:
             self.toast_window.attributes('-alpha', 0.9)
         except Exception as e:
-            print(e) # e
+            str(e) # e
             pass
 
         # 创建标签显示消息
@@ -143,7 +143,7 @@ class Toast:
                 self.toast_window.update()
                 time.sleep(0.02)
         except Exception as e:
-            print(e) # e
+            str(e) # e
             pass
 
     def _fade_out(self):
@@ -159,7 +159,7 @@ class Toast:
                 self.toast_window.update()
                 time.sleep(0.02)
         except Exception as e:
-            print(e) # e
+            str(e) # e
             pass
         finally:
             if self.toast_window:

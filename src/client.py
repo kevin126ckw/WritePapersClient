@@ -123,9 +123,14 @@ class Client:
         # 离线消息
         while not net_module.offline_message_queue.empty():
             msg = net_module.offline_message_queue.get_nowait()
-            self.logger.debug(
-                f"离线消息：{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(msg[3]))} {self.db.get_mem_by_uid(msg[1])}:{msg[0]}")
-            self.db.save_chat_message(msg[1], msg[2], msg[0], msg[3])
+            if msg[4] == "text":
+                self.db.save_chat_message(msg[1], msg[2], msg[0], msg[3])
+                self.logger.debug(
+                    f"离线消息：{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(msg[3]))} {self.db.get_mem_by_uid(msg[1])}:{msg[0]}")
+            elif msg[4] == "image":
+                self.db.save_chat_message(msg[1], msg[2], base64.b64decode(msg[0]), msg[3], "image")
+                self.logger.debug(
+                    f"离线消息：{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(msg[3]))} {self.db.get_mem_by_uid(msg[1])}: [图片]")
             if self.gui.scrollable_frame is not None:
                 self.update_contacts()
             else:
