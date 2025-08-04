@@ -1,4 +1,5 @@
 #!/usr/bin/python
+import _tkinter
 import time
 import tkinter as tk
 from io import BytesIO
@@ -439,8 +440,11 @@ class GUI:
                              command=lambda: self.send_message_handler(contact))
         send_btn.pack(side='right', pady=5)
 
-        # 加载历史消息
-        self.load_messages(contact, self.display_message)
+        try:
+            # 加载历史消息
+            self.load_messages(contact, self.display_message)
+        except _tkinter.TclError:
+            pass
 
     def load_contacts(self):
         for widget in self.scrollable_frame.winfo_children():

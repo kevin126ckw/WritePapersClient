@@ -178,6 +178,7 @@ class Client:
                     if msg['payload']['success']:
                         self.logger.info("登录成功")
                         self.msg_uid = msg['payload']['uid']
+                        self.net.token = msg['payload']['token']
                         self.logged_in = True
                         # self.login_ui_class.need_destroy = True
                         self.login_ui_class.root.after(0, lambda: self.login_ui_class.login_success())

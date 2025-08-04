@@ -71,6 +71,7 @@ temp_xml_dir = "data/"
 class ClientNetwork:
     def __init__(self):
         self.is_debug = None
+        self.token = None
         self.server_host = lib.read_xml("server/ip", temp_xml_dir)
         try:
             self.server_port = int(lib.read_xml("server/port", temp_xml_dir))
@@ -94,9 +95,11 @@ class ClientNetwork:
         if self.sock:
             logger.info("成功连接到服务器")
 
-    def send_packet(self, message_type, payload, token="TEMP_TOKEN_NEED_CHANGE"):
+    def send_packet(self, message_type, payload, token=None):
         if message_type == "login":
             token = "LOGIN"
+        if token is None:
+            token = self.token
         packet = {
             "type": message_type,
             "token": token,
