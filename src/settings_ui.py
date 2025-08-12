@@ -1,3 +1,9 @@
+# -*- coding: utf-8 -*-
+# @Time    : 2025/7/20
+# @File    : settings_ui.py
+# @Software: PyCharm
+# @Desc    :
+# @Author  : Kevin Chang
 import tkinter as tk
 from structlog import get_logger
 logger = get_logger()

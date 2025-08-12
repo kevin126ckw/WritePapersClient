@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # -*- coding: utf-8 -*-
 # @Time    : 2025/6/2
 # @File    : self.py
@@ -47,7 +46,7 @@ class Database:
             logger.error(f"执行 SQL 失败: {e} 欲执行的SQL语句：{command}")
         return self.cursor.fetchall()
 
-    def insert_sql(self, table, columns, values):
+    def _insert_sql(self, table, columns, values):
         """
         插入数据
         Args:
@@ -66,7 +65,7 @@ class Database:
         except sqlite3.Error as e:
             logger.error(f"插入数据失败: {e}",exec_info=True)
 
-    def select_sql(self, table, columns, condition=None):
+    def _select_sql(self, table, columns, condition=None):
         """
         查询数据
         Args:
@@ -83,7 +82,7 @@ class Database:
         except sqlite3.Error as e:
             logger.error(f"查询数据失败: {e}",exec_info=True)
             return None
-    def update_sql(self, table, columns, values, condition):
+    def _update_sql(self, table, columns, values, condition):
         """
         Args:
             :param table: 表
@@ -120,17 +119,18 @@ class Database:
         Args:
             :param uid: 用户id
         Returns:
-            :return str:昵称
+            :return: 昵称
         """
         try:
-            result = self.select_sql("contact", "mem", f"id='{uid}'")
+            result = self._select_sql("contact", "mem", f"id='{uid}'")
             logger.debug(f"昵称查询第一次结果：{result}")
             if not result:
-                if self.select_sql("contact", "name", f"id='{uid}'"):
-                    return self.select_sql("contact", "name", f"id='{uid}'")[0][0]
+                if self._select_sql("contact", "name", f"id='{uid}'"):
+                    return self._select_sql("contact", "name", f"id='{uid}'")[0][0]
             return result[0][0]
         except IndexError:
-            logger.error(f"未找到用户 {uid} 的昵称",exc_info=True)
+            logger.error(f"未找到用户 {uid} 的昵称",exec_info=True)
+            raise Not
             return None
         except Exception as e:
             logger.error(f"找到用户 {uid} 的昵称时发生错误{e}",exec_info=True)
@@ -144,7 +144,7 @@ class Database:
             :param name: 昵称
             :param mem: 备注
         """
-        self.insert_sql("contact", "id, username, name, mem", [uid, username, name, mem])
+        self._insert_sql("contact", "id, username, name, mem", [uid, username, name, mem])
         
     def save_chat_message(self, from_user, to_user, content, send_time, message_type="text"):
         """
@@ -156,7 +156,7 @@ class Database:
             :param send_time: 发送时间
             :param message_type: 消息类型
         """
-        self.insert_sql("chat_history", "from_user, to_user, type, content, send_time", [from_user, to_user, message_type, content, send_time])
+        self._insert_sql("chat_history", "from_user, to_user, type, content, send_time", [from_user, to_user, message_type, content, send_time])
     def get_last_chat_message(self, user_id, contact_id):
         """
         获取最近一条聊天消息
@@ -164,10 +164,10 @@ class Database:
             :param user_id: 用户id
             :param contact_id: 联系人id
         Returns:
-            :return list: 最近一条聊天消息
+            :return: 最近一条聊天消息
         """
         condition = f"(from_user={user_id} AND to_user={contact_id}) OR (from_user={contact_id} AND to_user={user_id})"
-        return self.select_sql("chat_history", "*", f"{condition} ORDER BY send_time DESC LIMIT 1")[0]
+        return self._select_sql("chat_history", "*", f"{condition} ORDER BY send_time DESC LIMIT 1")[0]
     def get_metadata(self, column):
         """
         获取元数据
@@ -177,10 +177,18 @@ class Database:
             :return: 元数据
         """
         try:
-            result = self.select_sql("meta", column)
+            result = self._select_sql("meta", column)
             return result[0][0] if result else None
         except Exception as e:
             logger.error(e, exc_info=True)
+    def insert_metadata(self, column, value):
+        """
+        更新元数据
+        Args:
+            :param column: 列名
+            :param value: 值
+        """
+        self._insert_sql("meta", column, [value])
     def create_tables_if_not_exists(self):
         sql_item1 = """
         create table if not exists chat_history
@@ -222,3 +230,44 @@ class Database:
         self.run_sql(sql_item2)
         self.run_sql(sql_item3)
         self.run_sql(sql_item4)
+    def get_contact_list(self):
+        """
+        获取联系人列表
+        Returns:
+            :return: 联系人列表 
+        """
+        contact_list = self._select_sql("contact", "mem, id, name")
+        if contact_list:
+            return contact_list
+        else:
+            return None
+    def get_chat_history(self, uid):
+        """
+        获取聊天记录
+        Args:
+            :param uid: 用户id
+        Returns:
+            :return: 聊天记录
+        """
+        return self._select_sql("chat_history", "*", f"to_user={uid} or from_user={uid}")
+    def check_is_friend(self, uid=None, username=None):
+        """
+        检查是否为好友
+        Args:
+            :param uid: 用户id
+            :param username: 用户名
+        Returns:
+            :return: 是否为好友
+        """
+        if uid:
+            if self._select_sql("contact", "id", f"id='{uid}'"):
+                return True
+            else:
+                return False
+        elif username:
+            if self._select_sql("contact", "username", f"username='{username}'"):
+                return True
+            else:
+                return False
+        else:
+            return None

@@ -1,3 +1,9 @@
+# -*- coding: utf-8 -*-
+# @Time    : 2025/6/2
+# @File    : toast_ui.py
+# @Software: PyCharm
+# @Desc    :
+# @Author  : Kevin Chang
 import _tkinter
 import tkinter as tk
 import time

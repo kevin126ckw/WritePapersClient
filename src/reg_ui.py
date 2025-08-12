@@ -1,3 +1,9 @@
+# -*- coding: utf-8 -*-
+# @Time    : 2025/7/6
+# @File    : reg_ui.py
+# @Software: PyCharm
+# @Desc    :
+# @Author  : Kevin Chang
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 """

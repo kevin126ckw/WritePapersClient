@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # -*- coding: utf-8 -*-
 # @Time    : 2025/6/2
 # @File    : networking.py
@@ -208,10 +207,10 @@ class ClientNetwork:
             sys.exit(1)
         except ConnectionResetError:
             logger.warning("服务器已断开连接")
-            sys.exit(1)
+            sys.exit(2)
         except ConnectionError:
             logger.warning("服务器已断开连接")
-            sys.exit(1)
+            sys.exit(3)
 
 
 if __name__ == '__main__':

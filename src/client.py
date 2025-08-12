@@ -140,14 +140,6 @@ class Client:
         # 返回值
         while not net_module.return_queue.empty():
             msg = net_module.return_queue.get_nowait()
-            """
-            以下代码转移到self.networking.py的line 155了
-            if msg['type'] == 'login_result':
-                if msg['payload']['success']:
-                    self.logger.info("登录成功")
-                else:
-                    self.logger.info("登录失败")
-            """
             match msg['type']:
                 case 'send_message_result':
                     if msg['payload']['success']:
@@ -222,9 +214,9 @@ class Client:
             self.uid = 0
         if contact["id"] == int(self.uid):
             self.gui.show_toast("解锁成绩：给自己发消息？", position="top-right")
-            messages = self.db.select_sql("chat_history", "*", f"to_user={self.uid} and from_user={self.uid}")
+            messages = self.db.get_chat_history(self.uid)
         else:
-            messages = self.db.select_sql("chat_history", "*", f"to_user={contact['id']} or from_user={contact['id']}")
+            messages = self.db.get_chat_history(contact["id"])
 
         for msg in messages:
             if len(str(msg)) < 250:
@@ -327,10 +319,11 @@ class Client:
 
     def update_contacts(self):
         contacts = []
-        for contact in self.db.select_sql("contact", "mem, id, name"):
+        for contact in self.db.get_contact_list():
             last_message = self.db.get_last_chat_message(self.uid, contact[1])
             self.logger.debug(f"正在更新联系人：{contact},last_message:{last_message}")
             if contact[0]:
+                # 联系人有昵称
                 if last_message[3] == "text":
                     contacts.append({"name": contact[0], "id": contact[1], "avatar": "👨", "last_msg": last_message[4],
                                      "time": time.strftime("%H:%M", time.localtime(last_message[5]))})
@@ -347,11 +340,14 @@ class Client:
                             {"name": contact[2], "id": contact[1], "avatar": "👨", "last_msg": "[图片]",
                              "time": time.strftime("%H:%M", time.localtime(last_message[5]))})
                 else:
+                    # 未知发送方
                     if last_message[3] == "text":
+                        # 未知发送方的文本消息
                         contacts.append({"name": "未知", "id": contact[1], "avatar": "👨", "last_msg": last_message[4],
                                          "time": time.localtime(last_message[5])
                                          })
                     elif last_message[3] == "image":
+                        # 未知发送方的图片消息
                         contacts.append(
                             {"name": "未知", "id": contact[1], "avatar": "👨", "last_msg": "[图片]",
                              "time": time.strftime("%H:%M", time.localtime(last_message[5]))})
@@ -394,14 +390,14 @@ class Client:
     def handle_add_friend(self, friend_id, verify_token):
         try:
             friend_uid = int(friend_id)
-            if self.db.select_sql("contact", "id", f"id='{friend_uid}'"):
+            if self.db.check_is_friend(friend_uid):
                 tk.messagebox.showwarning("提示", f"{friend_id} 已经是你的好友了")
                 return False
             self.net.send_packet("add_friend",
                                  {"friend_id_type": "uid", "friend_id": friend_uid, "verify_token": verify_token})
         except ValueError:
             friend_username = friend_id
-            if self.db.select_sql("contact", "id", f"username='{friend_username}'"):
+            if self.db.check_is_friend():
                 tk.messagebox.showwarning("提示", f"{friend_id} 已经是你的好友了")
                 return False
             self.net.send_packet("add_friend",
@@ -414,7 +410,7 @@ class Client:
             if lib.read_xml("account/username") == self.username and lib.read_xml("account/password") == self.password:
                 lib.write_xml("account/uid", self.uid)
             if self.db.get_metadata("uid") is None:
-                self.db.insert_sql("meta", "uid", [self.uid])
+                self.db.insert_metadata("uid", self.uid)
             elif int(self.db.get_metadata("uid")) != int(self.msg_uid):
                 tk.messagebox.showwarning("警告",
                                           f"数据库中保存的uid与当前登录的uid不一致，这可能不是你的数据库！\n数据库中的uid为{self.db.get_metadata('uid')}\n您登录的uid为{self.msg_uid}\n为保证数据库安全，即将退出程序！")
@@ -456,6 +452,38 @@ class Client:
         Returns:
             :return None
         """
+        r"""
+                                    _ooOoo_
+                                   o8888888o
+                                   88" . "88
+                                   (| -_- |)
+                                    O\ = /O
+                                ____/`---'\____
+                              .   ' \\| |// `.
+                               / \\||| : |||// \
+                             / _||||| -:- |||||- \
+                               | | \\\ - /// | |
+                             | \_| ''\---/'' | |
+                              \ .-\__ `-` ___/-. /
+                           ___`. .' /--.--\ `. . __
+                        ."" '< `.___\_<|>_/___.' >'"".
+                       | | : `- \`.;`\ _ /`;.`/ - ` : | |
+                         \ \ `-. \_ __\ /__ _/ .-` / /
+                 ======`-.____`-.___\_____/___.-`____.-'======
+                                    `=---='
+
+                 .............................................
+                          佛祖保佑             永无BUG
+                  佛曰:
+                          写字楼里写字间，写字间里程序员；
+                          程序人员写程序，又拿程序换酒钱。
+                          酒醒只在网上坐，酒醉还来网下眠；
+                          酒醉酒醒日复日，网上网下年复年。
+                          但愿老死电脑间，不愿鞠躬老板前；
+                          奔驰宝马贵者趣，公交自行程序员。
+                          别人笑我忒疯癫，我笑自己命太贱；
+                          不见满街漂亮妹，哪个归得程序员？
+                    """
         # username = "admin"
         # password = "admin"
         # uid = 0
@@ -503,14 +531,15 @@ class Client:
 
         if not self.logged_in:
             self.logger.critical("登录失败")
+            tk.messagebox.showerror("错误", "登录失败")
             return
 
         self.check_database_uid()
 
         if not self.db.get_metadata("uid"):
-            self.db.insert_sql("meta", "uid", [self.uid])
+            self.db.insert_metadata("uid", self.uid)
 
-        for contact in self.db.select_sql("contact", "mem, id, name"):
+        for contact in self.db.get_contact_list():
             if contact:
                 last_message = self.db.get_last_chat_message(self.uid, contact[1])
                 if last_message:

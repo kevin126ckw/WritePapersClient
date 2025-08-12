@@ -1,3 +1,9 @@
+# -*- coding: utf-8 -*-
+# @Time    : 2025/8/6
+# @File    : ImageViewer.py
+# @Software: PyCharm
+# @Desc    :
+# @Author  : Kevin Chang
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from PIL import Image, ImageTk
