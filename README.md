@@ -16,6 +16,7 @@ WritePapersClient/
 │   ├── toast_ui.py        # Toast提示UI组件
 │   ├── networking.py      # 网络通信模块
 │   ├── database.py        # 数据库操作模块
+│   ├── ImageViewer.py     # 图片查看器 
 │   ├── paperlib.py        # 工具函数库
 │   └── data/
 │       ├── client.sqlite  # 数据库文件

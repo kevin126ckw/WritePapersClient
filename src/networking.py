@@ -206,6 +206,9 @@ class ClientNetwork:
         except BrokenPipeError:
             logger.warning("服务器已断开连接")
             sys.exit(1)
+        except ConnectionResetError:
+            logger.warning("服务器已断开连接")
+            sys.exit(1)
         except ConnectionError:
             logger.warning("服务器已断开连接")
             sys.exit(1)

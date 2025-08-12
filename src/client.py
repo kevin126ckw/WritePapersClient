@@ -79,40 +79,36 @@ class Client:
         else:
             return False
 
-    def _handle_chat_message(self, payload):
+    def _handle_chat_message(self, from_user, send_time, message_type, message_content, need_update_contact=True):
         """
         处理聊天消息
         :return None
         """
-        from_user = payload['from_user']
-        send_time = payload['time']
-        message_type = payload['type']
-        message_content = str(payload['message'])
         self.db.save_chat_message(from_user, self.uid, message_content, send_time, message_type)
         if self.gui.current_chat:
             if self.gui.current_chat['id'] == int(from_user):
+                # 当前会话与收到消息的发送方相同
+                # 直接显示出消息
                 if message_type == "text":
+                    # 文本消息
                     self.gui.display_message(
                         {"content": message_content, "time": time.strftime("%H:%M", time.localtime(send_time)),
                          "status": "received", "sender": self.db.get_mem_by_uid(from_user), "type": message_type})
                 elif message_type == "image":
+                    # 图片消息
                     self.gui.display_message(
                         {"content": base64.b64decode(message_content), "time": time.strftime("%H:%M", time.localtime(send_time)),
                          "status": "received", "sender": self.db.get_mem_by_uid(from_user), "type": message_type})
-        if "need_update_contact" in payload:
-            self.logger.debug("need_update_contact存在")
-            if not payload['need_update_contact']:
-                self.logger.debug("不需要更新联系人")
-                return
         if message_type == "text":
+            # 文本消息
             self.logger.info(
                 f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(send_time))} {self.db.get_mem_by_uid(from_user)}: {message_content}")
-        else:
+        elif message_type == "image":
+            # 图片消息
             self.logger.info(
                 f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(send_time))} {self.db.get_mem_by_uid(from_user)}: [图片]")
-        if self.is_debug():
-            self.logger.debug(f"新消息payload:{payload}")
-        self.update_contacts()
+        if need_update_contact:
+            self.update_contacts()
 
     def process_message(self, net_module):
         """
@@ -140,7 +136,7 @@ class Client:
         # 普通消息
         while not net_module.message_queue.empty():
             msg = net_module.message_queue.get_nowait()
-            self._handle_chat_message(msg['payload'])
+            self._handle_chat_message(msg['payload']['from_user'], msg['payload']['send_time'], msg['payload']['message_type'], msg['payload']['message_content'])
         # 返回值
         while not net_module.return_queue.empty():
             msg = net_module.return_queue.get_nowait()

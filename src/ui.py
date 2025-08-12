@@ -2,6 +2,7 @@
 import _tkinter
 import time
 import tkinter as tk
+import ImageViewer as imageviewer
 from io import BytesIO
 
 import toast_ui
@@ -571,26 +572,39 @@ class GUI:
         msg_container.pack(fill='x', padx=20, pady=8)
         def show_image():
             try:
+                def on_click(e):
+                    str(e)
+                    viewer = imageviewer.ImageViewer(self.root, False)
+                    viewer.load_image(message['content'])
+                    viewer.show()
                 # with open("data/cache/temp.png", 'wb') as f:
                 #     f.write(message['content'])
                 # image = tk.PhotoImage(file="data/cache/temp.png")
                 # image = tk.PhotoImage(data=message['content'])
                 image = Image.open(BytesIO(message['content']))
+                # image.thumbnail((300, 300))
                 # 获取图像的所有帧
                 frames = []
                 for frame in ImageSequence.Iterator(image):
                     frames.append(ImageTk.PhotoImage(frame))
                 if len(frames) > 1:
                     # 动图
+                    frames = []
+                    for frame in ImageSequence.Iterator(image):
+                        frames.append(ImageTk.PhotoImage(frame))
                     image_label = tk.Label(msg_bubble, image=frames[0])
                     image_label.image = image
                 else:
                     # 静态图
+                    # self.show_toast("图片已被压缩到300x300,暂未更新显示原图功能", toast_type="warning")
                     image.thumbnail((300, 300))
-                    self.show_toast("图片已被压缩到300x300,暂未更新显示原图功能", toast_type="warning")
+                    frames = []
+                    for frame in ImageSequence.Iterator(image):
+                        frames.append(ImageTk.PhotoImage(frame))
                     tk_image = ImageTk.PhotoImage(image)
                     image_label = tk.Label(msg_bubble)
                     image_label.image = tk_image
+                image_label.bind("<Button-1>", on_click)
                 image_label.pack()
 
                 # 播放动画
