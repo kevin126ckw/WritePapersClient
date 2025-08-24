@@ -2,69 +2,99 @@
 # @Time    : 2025/7/3
 # @File    : ui.py
 # @Software: PyCharm
-# @Desc    :
+# @Desc    : WritePapers客户端用户界面模块
 # @Author  : Kevin Chang
+
+"""WritePapers客户端用户界面模块。
+
+本模块包含客户端的图形用户界面实现，包括聊天界面、联系人列表、消息显示等功能。
+"""
+
 import _tkinter
 import time
 import tkinter as tk
-import ImageViewer as imageviewer
 from io import BytesIO
+from tkinter import messagebox, ttk
+from typing import Any, Callable, Dict, List, Optional, Union
 
+import ImageViewer as imageviewer
 import toast_ui
 from PIL import Image, ImageTk, ImageSequence
-from tkinter import ttk, messagebox
-
-# from tkinter import font
-# import datetime
-# import json
 
 class GUI:
-    def __init__(self, root, load_messages):
-        self.is_debug = None
-        self.send_picture_handler = None
-        self.show_settings = None
-        self.user_frame = None
-        self.username_label = None
-        self.text_input = None
-        self.msg_frame = None
-        self.msg_canvas = None
-        self.chat_content = None
-        self.chat_header = None
-        self.chat_frame = None
-        self.scrollable_frame = None
-        self.contact_canvas = None
-        self.search_var = None
-        self.contact_frame = None
-        self.nav_frame = None
-        self.sidebar = None
-        self.main_container = None
-        self.fonts = None
-        self.colors = None
-        self.send_message_handler = None
-        self.contacts = None
+    """WritePapers客户端图形用户界面类。
+    
+    负责管理客户端的所有图形界面元素，包括聊天窗口、联系人列表、消息显示等。
+    """
+    
+    def __init__(self, root: tk.Tk, load_messages: Callable, send_picture_handler: Callable, 
+                 send_message_handler: Callable, is_debug: Callable, show_settings: Callable, 
+                 contacts: List[Dict[str, Any]]) -> None:
+        """初始化GUI界面。
+        
+        Args:
+            :param root: 主窗口对象
+            :param load_messages: 加载消息的回调函数
+            :param send_picture_handler: 发送图片的回调函数
+            :param send_message_handler: 发送消息的回调函数
+            :param is_debug: 检查调试模式的回调函数
+            :param show_settings: 显示设置的回调函数
+            :param contacts: 联系人列表
+            
+        Returns:
+            :return 无返回值
+        """
+        # 回调函数
+        self.is_debug = is_debug
+        self.send_picture_handler = send_picture_handler
+        self.send_message_handler = send_message_handler
+        self.show_settings = show_settings
+        self.load_messages = load_messages
+        
+        # 数据
+        self.contacts = contacts
+        self.current_chat: Optional[Dict[str, Any]] = None
+        self.messages: Dict[str, List[Dict[str, Any]]] = {}
+        self.add_friend_handler: Optional[Callable] = None
+        
+        # UI组件
         self.root = root
         self.toast = toast_ui.Toast(self.root)
+        self.user_frame: Optional[tk.Frame] = None
+        self.username_label: Optional[tk.Label] = None
+        self.text_input: Optional[tk.Text] = None
+        self.msg_frame: Optional[tk.Frame] = None
+        self.msg_canvas: Optional[tk.Canvas] = None
+        self.chat_content: Optional[tk.Frame] = None
+        self.chat_header: Optional[tk.Frame] = None
+        self.chat_frame: Optional[tk.Frame] = None
+        self.scrollable_frame: Optional[tk.Frame] = None
+        self.contact_canvas: Optional[tk.Canvas] = None
+        self.search_var: Optional[tk.StringVar] = None
+        self.contact_frame: Optional[tk.Frame] = None
+        self.nav_frame: Optional[tk.Frame] = None
+        self.sidebar: Optional[tk.Frame] = None
+        self.main_container: Optional[tk.Frame] = None
+        
+        # 样式配置
+        self.fonts: Optional[Dict[str, tuple]] = None
+        self.colors: Optional[Dict[str, str]] = None
 
-        self.load_messages = load_messages
+        # 初始化界面
 
-        # 模拟数据
+        self.setup_window()
+        self.setup_styles()
+        self.create_ui()
+
+    def setup_window(self) -> None:
+        """设置主窗口属性。
+        
+        Args:
+            无参数
+            
+        Returns:
+            :return 无返回值
         """
-        self.contacts = [
-            {"name": "张三", "avatar": "👨", "last_msg": "你好，最近怎么样？", "time": "14:30"},
-            {"name": "李四", "avatar": "👩", "last_msg": "明天见面聊", "time": "昨天"},
-            {"name": "王五", "avatar": "👨‍💼", "last_msg": "项目进展如何？", "time": "12:45"},
-            {"name": "小美", "avatar": "👧", "last_msg": "稍后回复你", "time": "11:20"}
-            # {"name": "技术群", "avatar": "👥", "last_msg": "有人在吗？", "time": "15:10"}
-        ]
-        """
-
-        self.current_chat = None
-        self.messages = {}
-        # 添加好友相关的回调函数
-        self.add_friend_handler = None
-        # self.load_contacts()
-
-    def setup_window(self):
         self.root.title("WritePapers - 即时通讯")
         self.root.geometry("1200x800")
         self.root.minsize(900, 600)
@@ -77,7 +107,15 @@ class GUI:
             str(e)
             pass
 
-    def setup_styles(self):
+    def setup_styles(self) -> None:
+        """设置界面样式和配色方案。
+        
+        Args:
+            无参数
+            
+        Returns:
+            :return 无返回值
+        """
         # 现代化配色方案
         self.colors = {
             'primary': '#4f46e5',  # 主色调 - 靛蓝
@@ -106,7 +144,15 @@ class GUI:
             'title': ('Microsoft YaHei UI', 14, 'bold')
         }
 
-    def create_ui(self):
+    def create_ui(self) -> None:
+        """创建主界面布局。
+        
+        Args:
+            无参数
+            
+        Returns:
+            :return 无返回值
+        """
         # 主容器
         self.main_container = tk.Frame(self.root, bg=self.colors['secondary'])
         self.main_container.pack(fill='both', expand=True, padx=0, pady=0)
@@ -116,7 +162,15 @@ class GUI:
         self.create_contact_list()
         self.create_chat_area()
 
-    def create_sidebar(self):
+    def create_sidebar(self) -> None:
+        """创建左侧边栏。
+        
+        Args:
+            无参数
+            
+        Returns:
+            :return 无返回值
+        """
         # 左侧边栏
         self.sidebar = tk.Frame(self.main_container, bg=self.colors['primary'], width=80)
         self.sidebar.pack(side='left', fill='y')
@@ -157,7 +211,15 @@ class GUI:
             btn.pack(pady=5)
             self.create_tooltip(btn, tooltip)
 
-    def create_contact_list(self):
+    def create_contact_list(self) -> None:
+        """创建联系人列表区域。
+        
+        Args:
+            无参数
+            
+        Returns:
+            :return 无返回值
+        """
         # 联系人列表区域
         self.contact_frame = tk.Frame(self.main_container, bg='white', width=320)
         self.contact_frame.pack(side='left', fill='y')
@@ -212,12 +274,20 @@ class GUI:
 
         self.contact_canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
         self.contact_canvas.configure(yscrollcommand=scrollbar.set)
-        time.sleep(0) # 我知道这行代码没有用，但是放在这里可以避免警告
+        # 配置滚动区域
         self.contact_canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
 
-    def show_add_friend_dialog(self):
-        """显示添加好友对话框"""
+    def show_add_friend_dialog(self) -> None:
+        """显示添加好友对话框。
+        
+        Args:
+            无参数
+            
+        Returns:
+            :return 无返回值
+        """
+
         dialog = tk.Toplevel(self.root)
         dialog.title("添加好友")
         dialog.geometry("400x400")
@@ -315,11 +385,27 @@ class GUI:
         """
         # dialog.bind('<Return>', on_enter)
 
-    def set_add_friend_handler(self, handler):
-        """设置添加好友的处理函数"""
+    def set_add_friend_handler(self, handler: Callable) -> None:
+        """设置添加好友的处理函数。
+        
+        Args:
+            :param handler: 添加好友的回调函数
+            
+        Returns:
+            :return 无返回值
+        """
+
         self.add_friend_handler = handler
 
-    def create_chat_area(self):
+    def create_chat_area(self) -> None:
+        """创建聊天区域。
+        
+        Args:
+            无参数
+            
+        Returns:
+            :return 无返回值
+        """
         # 聊天区域
         self.chat_frame = tk.Frame(self.main_container, bg='white')
         self.chat_frame.pack(side='right', fill='both', expand=True)
@@ -340,7 +426,15 @@ class GUI:
 
         self.chat_content = welcome_frame
 
-    def create_active_chat(self, contact):
+    def create_active_chat(self, contact: Dict[str, Any]) -> None:
+        """创建活动聊天界面。
+        
+        Args:
+            :param contact: 联系人信息字典
+            
+        Returns:
+            :return 无返回值
+        """
         # 清除当前聊天内容
         if self.chat_content:
             self.chat_content.destroy()
@@ -452,14 +546,31 @@ class GUI:
         except _tkinter.TclError:
             pass
 
-    def load_contacts(self):
-        for widget in self.scrollable_frame.winfo_children():
-            widget.destroy()
+    def load_contacts(self) -> None:
+        """加载联系人列表。
+        
+        Args:
+            无参数
+            
+        Returns:
+            :return 无返回值
+        """
+        if self.scrollable_frame:
+            for widget in self.scrollable_frame.winfo_children():
+                widget.destroy()
 
-        for contact in self.contacts:
-            self.create_contact_item(contact)
+            for contact in self.contacts:
+                self.create_contact_item(contact)
 
-    def create_contact_item(self, contact):
+    def create_contact_item(self, contact: Dict[str, Any]) -> None:
+        """创建联系人列表项。
+        
+        Args:
+            :param contact: 联系人信息字典
+            
+        Returns:
+            :return 无返回值
+        """
         item_frame = tk.Frame(self.scrollable_frame, bg='white', cursor='hand2')
         item_frame.pack(fill='x', padx=15, pady=2)
         item_frame.bind("<Button-1>", lambda e, c=contact: self.select_contact(c))
@@ -551,7 +662,15 @@ class GUI:
         item_frame.bind("<Enter>", on_enter)
         item_frame.bind("<Leave>", on_leave)
 
-    def select_contact(self, contact):
+    def select_contact(self, contact: Dict[str, Any]) -> None:
+        """选择联系人并切换到对应聊天。
+        
+        Args:
+            :param contact: 联系人信息字典
+            
+        Returns:
+            :return 无返回值
+        """
         self.current_chat = contact
         self.create_active_chat(contact)
 
@@ -571,65 +690,61 @@ class GUI:
             self.display_message(msg)
     """
 
-    def display_message(self, message):
+    def display_message(self, message: Dict[str, Any]) -> None:
+        """显示消息到聊天界面。
+        
+        Args:
+            :param message: 消息信息字典，包含content、time、status、sender、type等字段
+            
+        Returns:
+            :return 无返回值
+        """
         msg_container = tk.Frame(self.msg_frame, bg=self.colors['secondary'])
         # msg_container = tk.Frame(self.msg_frame, bg="#030507")
         msg_container.pack(fill='x', padx=20, pady=8)
-        def show_image():
+        def show_image() -> None:
+            """显示图片消息的内部函数。"""
             try:
-                def on_click(e):
-                    str(e)
+                def on_click(event) -> None:
+                    """点击图片时打开图片查看器。"""
                     viewer = imageviewer.ImageViewer(self.root, False)
                     viewer.load_image(message['content'])
                     viewer.show()
-                # with open("data/cache/temp.png", 'wb') as f:
-                #     f.write(message['content'])
-                # image = tk.PhotoImage(file="data/cache/temp.png")
-                # image = tk.PhotoImage(data=message['content'])
+                
                 image = Image.open(BytesIO(message['content']))
-                # image.thumbnail((300, 300))
                 # 获取图像的所有帧
                 frames = []
                 for frame in ImageSequence.Iterator(image):
                     frames.append(ImageTk.PhotoImage(frame))
+                
                 if len(frames) > 1:
-                    # 动图
-                    frames = []
-                    for frame in ImageSequence.Iterator(image):
-                        frames.append(ImageTk.PhotoImage(frame))
+                    # 动图处理
                     image_label = tk.Label(msg_bubble, image=frames[0])
-                    image_label.image = image
+                    image_label.image = frames[0]  # 保持引用
                 else:
-                    # 静态图
-                    # self.show_toast("图片已被压缩到300x300,暂未更新显示原图功能", toast_type="warning")
+                    # 静态图处理
                     image.thumbnail((300, 300))
-                    frames = []
-                    for frame in ImageSequence.Iterator(image):
-                        frames.append(ImageTk.PhotoImage(frame))
                     tk_image = ImageTk.PhotoImage(image)
-                    image_label = tk.Label(msg_bubble)
-                    image_label.image = tk_image
+                    image_label = tk.Label(msg_bubble, image=tk_image)
+                    image_label.image = tk_image  # 保持引用
+                
                 image_label.bind("<Button-1>", on_click)
                 image_label.pack()
 
-                # 播放动画
-                def update_frame(frame_index):
-                    # 更新标签的图像
-                    try:
-                        image_label.configure(image=frames[frame_index])
-                    except Exception as ex:
-                        str(ex)
-
-                    # 获取下一帧的索引
-                    next_frame_index = (frame_index + 1) % len(frames)
-
-                    # 在固定的时间间隔后调用更新函数
-                    self.root.after(100, update_frame, next_frame_index)
-
-                # 开始动画
-                update_frame(0)
+                # 播放动画（仅对动图）
+                if len(frames) > 1:
+                    def update_frame(frame_index: int) -> None:
+                        """更新动画帧。"""
+                        try:
+                            image_label.configure(image=frames[frame_index])
+                            next_frame_index = (frame_index + 1) % len(frames)
+                            self.root.after(100, update_frame, next_frame_index)
+                        except Exception:
+                            pass  # 忽略更新错误
+                    
+                    update_frame(0)
             except Exception as e:
-                print(e)
+                self.show_toast(f"图片显示失败: {str(e)}", toast_type="error")
         if message['status'] == 'sent':
             # 发送的消息（右对齐）
             msg_wrapper = tk.Frame(msg_container, bg=self.colors['secondary'])
@@ -700,7 +815,16 @@ class GUI:
         self.text_input.delete("1.0", tk.END)
     """
 
-    def create_tooltip(self, widget, text):
+    def create_tooltip(self, widget: tk.Widget, text: str) -> None:
+        """为控件创建工具提示。
+        
+        Args:
+            :param widget: 需要添加工具提示的控件
+            :param text: 工具提示文本
+            
+        Returns:
+            :return 无返回值
+        """
         def on_enter(e):
             tooltip = tk.Toplevel()
             tooltip.wm_overrideredirect(True)
@@ -719,31 +843,59 @@ class GUI:
         widget.bind("<Enter>", on_enter)
         widget.bind("<Leave>", on_leave)
 
-    def setup_bindings(self):
+    def setup_bindings(self) -> None:
+        """设置快捷键绑定。
+        
+        Args:
+            无参数
+            
+        Returns:
+            :return 无返回值
+        """
         # 快捷键绑定
         self.root.bind('<Control-Return>',
                        lambda e: self.send_message_handler(self.current_chat) if self.current_chat else None)
 
-    def show_toast(self, message, duration=3000, position='bottom-right', bg_color='#333333',
-             text_color='white', font=('Arial', 10), toast_type='info'):
-        """
-        显示一个 Toast 提示框
-
-        :param message: 要显示的消息
-        :param duration: 显示时长(毫秒)
-        :param position: 位置 ('top-left', 'top-right', 'bottom-left', 'bottom-right', 'center')
-        :param bg_color: 背景颜色
-        :param text_color: 文字颜色
-        :param font: 字体
-        :param toast_type: 类型 ('info', 'success', 'warning', 'error')
+    def show_toast(self, message: str, duration: int = 3000, position: str = 'bottom-right', 
+                   bg_color: str = '#333333', text_color: str = 'white', 
+                   font: tuple = ('Arial', 10), toast_type: str = 'info') -> None:
+        """显示Toast提示框。
+        
+        Args:
+            :param message: 要显示的消息
+            :param duration: 显示时长(毫秒)
+            :param position: 位置 ('top-left', 'top-right', 'bottom-left', 'bottom-right', 'center')
+            :param bg_color: 背景颜色
+            :param text_color: 文字颜色
+            :param font: 字体
+            :param toast_type: 类型 ('info', 'success', 'warning', 'error')
+            
+        Returns:
+            :return 无返回值
         """
         self.toast.show(message, duration, position, bg_color, text_color, font, toast_type)
 
     @staticmethod
-    def show_chat():
+    def show_chat() -> None:
+        """显示聊天界面（静态方法）。
+        
+        Args:
+            无参数
+            
+        Returns:
+            :return 无返回值
+        """
         # messagebox.showinfo("功能", "聊天功能已激活")
         pass
 
     @staticmethod
-    def show_contacts():
+    def show_contacts() -> None:
+        """显示联系人管理界面（静态方法）。
+        
+        Args:
+            无参数
+            
+        Returns:
+            :return 无返回值
+        """
         messagebox.showinfo("功能", "联系人管理功能")

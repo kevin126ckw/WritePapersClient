@@ -1,19 +1,37 @@
 # -*- coding: utf-8 -*-
 # @Time    : 2025/8/12
-# @File    : contact_manager.py
+# @File    : login_ui.py
 # @Software: PyCharm
-# @Desc    :
+# @Desc    : WritePapers客户端登录界面模块
 # @Author  : Kevin Chang
+
+"""WritePapers客户端登录界面模块。
+
+本模块包含用户登录界面的实现，包括用户名密码输入、记住密码、注册跳转等功能。
+"""
+
+import re
+import time
 import tkinter as tk
 from tkinter import messagebox
-# from tkinter import ttk
-import re
-# import hashlib
-import time
+from typing import Callable, Dict, Optional
 
 
 class LoginUI:
-    def __init__(self, self_root):
+    """WritePapers客户端登录界面类。
+    
+    负责管理用户登录界面的所有元素和交互逻辑。
+    """
+    
+    def __init__(self, self_root: tk.Tk) -> None:
+        """初始化登录界面。
+        
+        Args:
+            :param self_root: 主窗口对象
+            
+        Returns:
+            :return 无返回值
+        """
         self.bottom_frame = None
         self.show_register = None
         self.login_status_label = None

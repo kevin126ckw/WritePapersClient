@@ -2,31 +2,54 @@
 # @Time    : 2025/6/2
 # @File    : toast_ui.py
 # @Software: PyCharm
-# @Desc    :
+# @Desc    : WritePapers客户端Toast提示组件模块
 # @Author  : Kevin Chang
+
+"""WritePapers客户端Toast提示组件模块。
+
+本模块包含Toast提示框的实现，支持不同类型的提示消息显示。
+"""
+
 import _tkinter
-import tkinter as tk
 import time
+import tkinter as tk
+from typing import Optional
 
 
 class Toast:
-    def __init__(self, parent=None):
+    """Toast提示框类。
+    
+    用于显示临时提示消息，支持多种样式和位置。
+    """
+    
+    def __init__(self, parent: Optional[tk.Tk] = None) -> None:
+        """初始化Toast组件。
+        
+        Args:
+            :param parent: 父窗口对象
+            
+        Returns:
+            :return 无返回值
+        """
         self.parent = parent
         self.toast_window = None
 
-    def show(self, message, duration=3000, position='bottom-right', bg_color='#333333',
-             text_color='white', font=('Arial', 10), toast_type='info'):
-        """
-        显示Toast通知
-
-        参数:
-        - message: 要显示的消息
-        - duration: 显示时长(毫秒)
-        - position: 位置 ('top-left', 'top-right', 'bottom-left', 'bottom-right', 'center')
-        - bg_color: 背景颜色
-        - text_color: 文字颜色
-        - font: 字体
-        - toast_type: 类型 ('info', 'success', 'warning', 'error')
+    def show(self, message: str, duration: int = 3000, position: str = 'bottom-right', 
+             bg_color: str = '#333333', text_color: str = 'white', 
+             font: tuple = ('Arial', 10), toast_type: str = 'info') -> None:
+        """显示Toast通知。
+        
+        Args:
+            :param message: 要显示的消息
+            :param duration: 显示时长(毫秒)
+            :param position: 位置 ('top-left', 'top-right', 'bottom-left', 'bottom-right', 'center')
+            :param bg_color: 背景颜色
+            :param text_color: 文字颜色
+            :param font: 字体
+            :param toast_type: 类型 ('info', 'success', 'warning', 'error')
+            
+        Returns:
+            :return 无返回值
         """
 
         # 如果已有Toast在显示，先关闭它

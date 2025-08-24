@@ -20,12 +20,15 @@ class ImageViewer:
     可通过二进制数据或PIL图片对象调用
     """
 
-    def __init__(self, master: Optional[tk.Tk] = None, need_menu: bool=True):
-        """
-        初始化图片查看器
+    def __init__(self, master: Optional[tk.Tk] = None, need_menu: bool = True) -> None:
+        """初始化图片查看器。
 
         Args:
-            master: 父窗口，如果为None则创建新的根窗口
+            :param master: 父窗口，如果为None则创建新的根窗口
+            :param need_menu: 是否需要菜单栏
+            
+        Returns:
+            :return 无返回值
         """
         self.need_menu = need_menu
         self.master = master if master else tk.Tk()
@@ -275,14 +278,13 @@ class ImageViewer:
             return False
 
     def load_image(self, image_data: Union[bytes, Image.Image]) -> bool:
-        """
-        加载图片数据
+        """加载图片数据。
 
         Args:
-            image_data: 图片的二进制数据或PIL图片对象
+            :param image_data: 图片的二进制数据或PIL图片对象
 
         Returns:
-            bool: 加载成功返回True，失败返回False
+            :return 加载成功返回True，失败返回False
         """
         try:
             # 停止当前的GIF动画
@@ -505,15 +507,14 @@ class ImageViewer:
 
 
 def show_image(image_data: Union[bytes, Image.Image, str], parent: Optional[tk.Tk] = None) -> ImageViewer:
-    """
-    便捷函数：显示图片
+    """便捷函数：显示图片。
 
     Args:
-        image_data: 图片数据（二进制数据、PIL图片对象或文件路径）
-        parent: 父窗口
+        :param image_data: 图片数据（二进制数据、PIL图片对象或文件路径）
+        :param parent: 父窗口
 
     Returns:
-        ImageViewer: 图片查看器实例
+        :return 图片查看器实例
     """
     _viewer = ImageViewer(parent)
 
