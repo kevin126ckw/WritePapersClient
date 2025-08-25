@@ -5,7 +5,7 @@
     <port>3624</port>
   </server>
   <database>
-    <file>D:\编程\WritePapersDev\WritePapersClient\src\data\client.sqlite</file>
+    <file>data/client.sqlite</file>
   </database>
   <account>
     <username>admin</username>
